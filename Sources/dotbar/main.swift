@@ -19,7 +19,8 @@ final class App: NSObject, NSApplicationDelegate {
         b.target = self
         b.action = #selector(click)
         b.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        separator.button?.isEnabled = false
+        separator.button?.target = self   // clicking the pipe toggles too, and keeps it full-contrast
+        separator.button?.action = #selector(click)
         set(collapsed: UserDefaults.standard.bool(forKey: "collapsed"))
     }
 
@@ -38,7 +39,7 @@ final class App: NSObject, NSApplicationDelegate {
         collapsed = c
         UserDefaults.standard.set(c, forKey: "collapsed")
         separator.length = c ? hiddenLength : 14
-        separator.button?.title = c ? "" : "|"
+        separator.button?.title = c ? "" : "┃"
         dot.button?.title = c ? "•" : "◦"
         timer?.invalidate()
         if !c && autoCollapseSeconds > 0 {
