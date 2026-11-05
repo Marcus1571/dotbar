@@ -15,4 +15,5 @@
 - Arranging is reachable from the bar (slider button at its end); while arranging the dot shows ✓ and a hint under it explains the ⌘-drag until you click ✓.
 - Fix: the bar filled with duplicates and "About This Mac" entries (redrawn items were taken for dropped ones; a scan during an open menu read the menu). Drops are now counted per app.
 - Profiles: *Large display* and *Laptop screen*, switched automatically. Each is a saved menu-bar order written to macOS's layout file (granted once by picking it). Settings window (⌘,) with a plain explanation, the grant button and a drag-to-reorder list per profile.
+- Fix: with an app with short menus in front (e.g. Herdr) hidden icons stayed visible. The push is re-fitted on every app switch, and an invisible spacer takes the last slot macOS keeps.
 - Rescans on display changes, app launch/quit and every dot click; append-only timestamped log.

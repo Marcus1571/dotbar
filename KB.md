@@ -8,7 +8,11 @@ dotbar owns two status items, created in this order because macOS places newer i
 - **The separator** (`┃` while arranging, empty otherwise): icons to its left are the hidden ones.
 
 ## Hiding (pushing)
-`collapse()` widens the separator so the items on its left are pushed toward the app menus, where macOS 27 parks them behind its overflow arrow when there is no room. macOS drops a status item wider than its room, so `grow()` widens in steps of 64, 16 and 4 points, checks each step ~80 ms later (frames update asynchronously) and keeps the last accepted width. `expand()` shrinks the separator back to 14 points. A `generation` counter stops a stale `grow()`. Why this is unreliable: [findings.md](findings.md#macos-27-menu-bar-measured-through-accessibility-2026-11-05).
+`collapse()` widens the separator so the items on its left are pushed toward the app menus, where macOS 27 parks them behind its overflow arrow when there is no room. macOS drops a status item wider than its room, so `grow()` widens in steps of 64, 16 and 4 points, checks each step ~80 ms later (frames update asynchronously) and keeps the last accepted width. `expand()` shrinks the separator back to 14 points. A `generation` counter stops a stale `grow()`. Every `grow` step is logged (`grow <length> frame=<minX>..<maxX> ok|refused`).
+
+The room changes with the frontmost app, so on every app activation `refit()` (only while pushed) shrinks in 64-point steps while macOS refuses the width, then grows as usual; starting from the current width keeps hidden icons from flashing back.
+
+An invisible third item, the **spacer** (`dotbar.spacer`), sits just left of the separator (its position is written to the layout file at launch, separator + 1, when access is granted): 40 points while pushed, 1 while expanded. Without it, with short app menus macOS keeps the one icon that fits between the app menus and the separator ([measured](findings.md#short-app-menus-leave-hidden-icons-visible-measured-2026-11-05)). Why this is unreliable: [findings.md](findings.md#macos-27-menu-bar-measured-through-accessibility-2026-11-05).
 
 ## Inventory
 `menuBarItems()` (`Sources/dotbar/Bar.swift`) walks the one AX window of `com.apple.MenuBarAgent`: one group per item, the owner's element as its first child (read one level only: while a menu is open, deeper levels are that menu, e.g. "About This Mac"). It skips dotbar's own items and Apple's MenuBarAgent-owned items (clock, battery, Wi-Fi, sound, Control Center). `overflowButton()` finds Apple's « chevron and whether it is expanded.

@@ -22,6 +22,12 @@ Measured on a MacBook Air 15" M3 (notch), Swift 6.4.2 with Command Line Tools on
 - Parked items keep an AX frame (their parked x), but **`AXPress` on a parked item opens nothing** (tested with Kerberos: no menu window appeared). An item must be drawn to open.
 - Whether a pushed item is hidden depends on the frontmost app: with long app menus the item is parked behind the arrow; with short ones it is drawn next to the app menus, and the arrow disappears. This is why pushing never hides reliably on macOS 27.
 
+## Short app menus leave hidden icons visible (measured 2026-11-05)
+- The room left of the status items depends on the frontmost app (see above), so a separator width fitted with Edge in front is far too short with Herdr (one menu): about ten hidden icons stayed drawn. Re-fitting on every app activation fixes most of it.
+- Even re-fitted, with Herdr in front macOS clamped the separator's left edge at x=137 and kept the one icon (Outlook, 112-135) in the gap between the app menus and the separator: growing further was refused (frame `137..1074`, the right edge moved instead), not answered by dropping that icon.
+- A 1-point item of dotbar's own placed next to the separator did not help (both survived). A **40-point** invisible item there did: the separator then reached x=113 and nothing hidden stayed drawn. The spacer is 1 point while expanded.
+- Writing `TrailingItemPreferredPositions` through `CFPreferencesSetValue` with the file's absolute-path domain reached the file (cfprefsd), and MenuBarAgent placed the new item where written.
+
 ## Laptop screen alone (notch), measured 2026-11-05
 Built-in display 1280x828 points; the notch spans x≈570–710 (`NSScreen.auxiliaryTopLeftArea`/`TopRightArea`). The operator's screenshots and AX reads agree:
 - macOS fills the status area right of the notch (~550 pt) from the right. What does not fit is **parked** behind the « chevron (stacked at x≈739–748). Pressing « draws the parked items inline left of the notch, over the app menus, and they work natively.
