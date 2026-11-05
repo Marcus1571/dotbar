@@ -7,4 +7,5 @@
 - Right-click the dot: Arrange icons / Done arranging, Refresh hidden icons, Quit.
 - App icons in the bar; text beside the icon for apps with several items; SF Symbols for Apple's menu-extra agents (no real icon).
 - Needs Accessibility only. Signed with a local self-signed certificate so the grant survives rebuilds. Logs to `/tmp/dotbar.log`.
-- Known: hiding by pushing is unreliable on large displays, and the laptop-only case is untested. See `docs/FINDINGS.md`.
+- Known: hiding by pushing is unreliable on large displays, and the laptop-only case is untested. See `findings.md`.
+- Hidden-item inventory now comes from MenuBarAgent's single Accessibility window (complete on macOS 27, includes items parked behind the overflow arrow).

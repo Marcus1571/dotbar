@@ -14,19 +14,25 @@ private func attr(_ el: AXUIElement, _ a: String) -> CFTypeRef? {
     return AXUIElementCopyAttributeValue(el, a as CFString, &v) == .success ? v : nil
 }
 
+// macOS 27 draws every status item in one MenuBarAgent window. Its AX children are one group per item, the item's own
+// element inside (owned by the item's app), and the overflow chevron as a bare button. Unlike each app's AXExtrasMenuBar,
+// this also lists items parked behind the overflow chevron.
 func menuBarItems() -> [Item] {
+    guard let agent = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.MenuBarAgent").first,
+          let win = (attr(AXUIElementCreateApplication(agent.processIdentifier), kAXWindowsAttribute) as? [AXUIElement])?.first
+    else { return [] }
     var out: [Item] = []
-    for app in NSWorkspace.shared.runningApplications
-    where app.processIdentifier != getpid() && app.bundleIdentifier != "com.apple.MenuBarAgent" {
-        guard let bar = attr(AXUIElementCreateApplication(app.processIdentifier), "AXExtrasMenuBar") else { continue }
-        for k in (attr(bar as! AXUIElement, kAXChildrenAttribute) as? [AXUIElement]) ?? [] {
-            var pt = CGPoint.zero, sz = CGSize.zero
-            if let p = attr(k, kAXPositionAttribute) { AXValueGetValue(p as! AXValue, .cgPoint, &pt) }
-            if let s = attr(k, kAXSizeAttribute) { AXValueGetValue(s as! AXValue, .cgSize, &sz) }
-            let t = (attr(k, kAXTitleAttribute) as? String).flatMap { $0.isEmpty ? nil : $0 }
-                ?? (attr(k, kAXDescriptionAttribute) as? String) ?? ""
-            out.append(Item(el: k, app: app, x: pt.x, w: sz.width, title: t))
-        }
+    for g in (attr(win, kAXChildrenAttribute) as? [AXUIElement]) ?? [] {
+        var el = g
+        while let k = (attr(el, kAXChildrenAttribute) as? [AXUIElement])?.first { el = k }
+        var pid: pid_t = 0
+        AXUIElementGetPid(el, &pid)
+        guard pid != getpid(), pid != agent.processIdentifier, let app = NSRunningApplication(processIdentifier: pid) else { continue }
+        var r = CGRect.zero
+        if let f = attr(g, "AXFrame") { AXValueGetValue(f as! AXValue, .cgRect, &r) }
+        let t = (attr(el, kAXTitleAttribute) as? String).flatMap { $0.isEmpty ? nil : $0 }
+            ?? (attr(el, kAXDescriptionAttribute) as? String) ?? ""
+        out.append(Item(el: el, app: app, x: r.minX, w: r.width, title: t))
     }
     return out.sorted { $0.x < $1.x }
 }
