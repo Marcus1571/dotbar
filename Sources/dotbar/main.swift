@@ -200,11 +200,23 @@ final class App: NSObject, NSApplicationDelegate {
         grow(generation, length: narrow, steps: [64, 16, 4], right: sepRight)
     }
 
+    // With short app menus macOS stops the separator at the hidden icons that still fit left of it and keeps them drawn
+    // (findings.md). Widen the invisible spacer over them so they no longer fit, then check again.
+    func squeeze(_ gen: Int, tries: Int) {
+        guard gen == generation, tries > 0, let sep = separator.button?.window?.frame.minX else { return }
+        let all = menuBarItems(), left = all.filter { $0.x < sep }
+        guard let first = left.first else { log("squeeze: nothing drawn left of the separator at x=\(Int(sep)) (\(all.count) items read)"); return }
+        spacer.length += sep - first.x
+        log("squeeze: \(left.count) hidden icon(s) still drawn from x=\(Int(first.x)) to the separator at x=\(Int(sep)), spacer -> \(Int(spacer.length))")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [self] in squeeze(gen, tries: tries - 1) }
+    }
+
     // After an app switch: shrink in 64-point steps while macOS refuses the width, then grow as usual. Starting from
     // the current width (not from narrow) keeps hidden icons from flashing back on every switch.
     func refit() {
         guard pushed else { return }
         generation += 1
+        spacer.length = 40
         shrink(generation)
     }
 
@@ -223,7 +235,8 @@ final class App: NSObject, NSApplicationDelegate {
     // and the room depends on the frontmost app), so widen the separator step by step until a step is refused,
     // then back off to the last accepted width and refine with smaller steps.
     func grow(_ gen: Int, length: CGFloat, steps: [CGFloat], right: CGFloat) {
-        guard gen == generation, let step = steps.first, let w = separator.button?.window else { return }
+        guard gen == generation, let w = separator.button?.window else { return }
+        guard let step = steps.first else { squeeze(gen, tries: 3); return }
         let next = length + step
         separator.length = next
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [self] in

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix: with short app menus (e.g. Herdr) a few hidden icons could stay drawn at the left. After each push dotbar now checks for hidden icons still drawn left of the separator and widens its invisible spacer over them.
+
 ## 0.1.1 (2026-11-05)
 
 - Profiles in the dot's right-click menu: pick *Large display* or *Laptop screen* and it is applied at once (checkmark on the current one). Plugging or unplugging a display still switches automatically.

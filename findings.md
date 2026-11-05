@@ -26,6 +26,7 @@ Measured on a MacBook Air 15" M3 (notch), Swift 6.4.2 with Command Line Tools on
 - The room left of the status items depends on the frontmost app (see above), so a separator width fitted with Edge in front is far too short with Herdr (one menu): about ten hidden icons stayed drawn. Re-fitting on every app activation fixes most of it.
 - Even re-fitted, with Herdr in front macOS clamped the separator's left edge at x=137 and kept the one icon (Outlook, 112-135) in the gap between the app menus and the separator: growing further was refused (frame `137..1074`, the right edge moved instead), not answered by dropping that icon.
 - A 1-point item of dotbar's own placed next to the separator did not help (both survived). A **40-point** invisible item there did: the separator then reached x=113 and nothing hidden stayed drawn. The spacer is 1 point while expanded.
+- The gap is not always one icon: once, with Herdr in front, the separator stopped at x=235 and two iStat Menus icons plus the 40-point spacer stayed in it. Hence the measured widening (`squeeze`).
 - Writing `TrailingItemPreferredPositions` through `CFPreferencesSetValue` with the file's absolute-path domain reached the file (cfprefsd), and MenuBarAgent placed the new item where written.
 
 ## Laptop screen alone (notch), measured 2026-11-05
