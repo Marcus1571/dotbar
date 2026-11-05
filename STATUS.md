@@ -11,7 +11,7 @@ No tool can open another app's menu or popover under dotbar's bar: the app ancho
 ## In flight
 - 2026-11-05: laptop-alone test done (operator's screenshots + AX reads, see [findings.md](findings.md#laptop-screen-alone-notch-measured-2026-11-05)). Result: macOS parks what does not fit behind its « chevron and **drops** what does not fit even there, with no AX trace. The operator's call: dotbar is worth it exactly for those, so the bar must list escaped icons automatically.
 - Built the same day: memory of every seen item, three press paths (drawn / parked / absent), persisted off-bar list with dimmed ghosts.
-- **To verify by the operator:** (1) plug in the external display once, unplug, open the bar: the dropped icons (Kerberos, GlobalProtect, Support, input menu, Outlook on this Mac) should be listed and open on click; plain-menu items like Kerberos are the open question. (2) Click an icon parked behind «: the chevron should expand and its menu open left of the notch.
+- **To verify by the operator:** (1) plug in the external display once, unplug, open the bar: the icons that were dropped should be listed and open on click; plain-menu items like Kerberos are the open question. (2) Click an icon parked behind «: the chevron should expand and its menu open left of the notch.
 
 ## Known limits
 - An icon macOS drops before dotbar ever saw it in this run cannot be pressed; it shows dimmed (if remembered) until there is room once.
