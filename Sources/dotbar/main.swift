@@ -2,7 +2,6 @@ import AppKit
 
 // Menu-bar hider: icons left of the separator collapse off-screen when you click the dot.
 // No permissions, no polling: the only work is resizing one status item on click.
-let autoCollapseSeconds: TimeInterval = 10   // 0 = never auto-collapse
 let narrow: CGFloat = 14
 
 final class App: NSObject, NSApplicationDelegate {
@@ -10,7 +9,6 @@ final class App: NSObject, NSApplicationDelegate {
     let dot = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     let separator = NSStatusBar.system.statusItem(withLength: narrow)
     var collapsed = false
-    var timer: Timer?
     var generation = 0   // bumped on every toggle so a stale grow() stops
 
     func applicationDidFinishLaunching(_ n: Notification) {
@@ -39,18 +37,12 @@ final class App: NSObject, NSApplicationDelegate {
     func set(collapsed c: Bool) {
         collapsed = c
         generation += 1
-        timer?.invalidate()
         dot.button?.title = c ? "•" : "◦"
         separator.button?.title = c ? "" : "┃"
         if c {
             grow(generation, length: narrow, steps: [64, 16, 4], right: separator.button?.window?.frame.maxX ?? 0)
         } else {
             separator.length = narrow
-            if autoCollapseSeconds > 0 {
-                timer = Timer.scheduledTimer(withTimeInterval: autoCollapseSeconds, repeats: false) { [weak self] _ in
-                    self?.set(collapsed: true)
-                }
-            }
         }
     }
 
