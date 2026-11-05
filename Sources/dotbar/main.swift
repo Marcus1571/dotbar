@@ -1,49 +1,75 @@
 import AppKit
+import ApplicationServices
 
-// Menu-bar hider: icons left of the separator collapse off-screen when you click the dot.
-// No permissions, no polling: the only work is resizing one status item on click.
+// Menu-bar hider with a second bar: icons left of the separator are pushed away; click the dot to see them
+// in a small bar below the menu bar and click one to open it. Needs only Accessibility (no Screen Recording).
 let narrow: CGFloat = 14
 
 final class App: NSObject, NSApplicationDelegate {
     // Created dot first, separator second: macOS places newer items to the LEFT of older ones.
     let dot = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     let separator = NSStatusBar.system.statusItem(withLength: narrow)
-    var collapsed = false
-    var generation = 0   // bumped on every toggle so a stale grow() stops
+    let bar = BarPanel()
+    var hidden: [Item] = []
+    var arranging = false
+    var generation = 0   // bumped on every layout change so a stale grow() stops
 
     func applicationDidFinishLaunching(_ n: Notification) {
+        _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary)
         dot.autosaveName = "dotbar.dot"
         separator.autosaveName = "dotbar.separator"
         guard let b = dot.button else { return }
         b.target = self
         b.action = #selector(click)
         b.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        separator.button?.target = self   // clicking the pipe toggles too, and keeps it full-contrast
-        separator.button?.action = #selector(click)
-        set(collapsed: false)
+        refresh()
     }
 
     @objc func click() {
         guard let e = NSApp.currentEvent else { return }
         if e.type == .rightMouseUp || e.modifierFlags.contains(.option) {
             let m = NSMenu()
+            m.addItem(withTitle: arranging ? "Done arranging" : "Arrange icons…", action: #selector(toggleArranging), keyEquivalent: "")
+            m.addItem(withTitle: "Refresh hidden icons", action: #selector(refreshAction), keyEquivalent: "")
+            m.addItem(.separator())
             m.addItem(withTitle: "Quit dotbar", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
             dot.menu = m; dot.button?.performClick(nil); dot.menu = nil
-        } else {
-            set(collapsed: !collapsed)
+        } else if bar.isShown {
+            bar.hide()
+        } else if let f = dot.button?.window?.frame {
+            bar.show(hidden, below: f)
         }
     }
 
-    func set(collapsed c: Bool) {
-        collapsed = c
+    @objc func refreshAction() { refresh() }
+
+    @objc func toggleArranging() {
+        arranging.toggle()
+        if arranging { expand() } else { refresh() }
+    }
+
+    func expand() {
         generation += 1
-        dot.button?.title = c ? "•" : "◦"
-        separator.button?.title = c ? "" : "┃"
-        if c {
-            grow(generation, length: narrow, steps: [64, 16, 4], right: separator.button?.window?.frame.maxX ?? 0)
-        } else {
-            separator.length = narrow
+        dot.button?.title = "◦"
+        separator.button?.title = "┃"
+        separator.length = narrow
+    }
+
+    // Expand, read where every item sits, remember those left of the separator, then push them away again.
+    func refresh() {
+        expand()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [self] in
+            guard !arranging, let w = separator.button?.window else { return }
+            hidden = menuBarItems().filter { $0.x + $0.w / 2 < w.frame.minX }
+            collapse()
         }
+    }
+
+    func collapse() {
+        generation += 1
+        dot.button?.title = "•"
+        separator.button?.title = ""
+        grow(generation, length: narrow, steps: [64, 16, 4], right: separator.button?.window?.frame.maxX ?? 0)
     }
 
     // macOS 27 ignores a status item wider than the room it has (it clamps the left edge at the app menus,

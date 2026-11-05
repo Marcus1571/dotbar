@@ -6,4 +6,4 @@ A tiny macOS menu-bar hider. Click the dot: icons to the left of the `|` separat
 - **Right-click** (or Option-click) the dot for Quit.
 - **Build:** `scripts/build-app.sh --install`
 
-Roadmap: bar below the menu bar, icon limit, profiles.
+Click the dot to see the hidden icons in a small bar below the menu bar; click one to open it. Needs Accessibility (not Screen Recording). Right-click the dot: "Arrange icons…" to place the `┃` (Cmd+drag), "Refresh hidden icons".

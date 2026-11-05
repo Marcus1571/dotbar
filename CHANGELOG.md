@@ -2,4 +2,4 @@
 
 ## 0.1.0
 
-- First version: click the dot to collapse or expand the icons left of the `┃` separator. Collapse widens the separator step by step until macOS refuses (macOS 27 ignores items wider than the room it has, which depends on the frontmost app). No permissions, no polling.
+- First version: icons left of the `┃` separator are pushed away; click the dot for a bar below the menu bar listing them (app icons, via Accessibility), click one to open it.
