@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 (2026-11-05)
 
 - Profiles in the dot's right-click menu: pick *Large display* or *Laptop screen* and it is applied at once (checkmark on the current one). Plugging or unplugging a display still switches automatically.
 - Fix: Save and Apply for the profile not matching the attached display only saved it; it now applies it.
