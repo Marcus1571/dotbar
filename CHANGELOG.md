@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.2 (2026-11-05)
 
 - Fix: with short app menus (e.g. Herdr) a few hidden icons could stay drawn at the left. After each push dotbar now checks for hidden icons still drawn left of the separator and widens its invisible spacer over them.
 
