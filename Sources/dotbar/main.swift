@@ -1,15 +1,17 @@
 import AppKit
 
 // Menu-bar hider: icons left of the separator collapse off-screen when you click the dot.
-// No permissions, no polling: the only work is flipping one status item's length on click.
+// No permissions, no polling: the only work is resizing one status item on click.
 let autoCollapseSeconds: TimeInterval = 10   // 0 = never auto-collapse
+let narrow: CGFloat = 14
 
 final class App: NSObject, NSApplicationDelegate {
     // Created dot first, separator second: macOS places newer items to the LEFT of older ones.
     let dot = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    let separator = NSStatusBar.system.statusItem(withLength: 14)
+    let separator = NSStatusBar.system.statusItem(withLength: narrow)
     var collapsed = false
     var timer: Timer?
+    var generation = 0   // bumped on every toggle so a stale grow() stops
 
     func applicationDidFinishLaunching(_ n: Notification) {
         dot.autosaveName = "dotbar.dot"
@@ -35,20 +37,39 @@ final class App: NSObject, NSApplicationDelegate {
     }
 
     func set(collapsed c: Bool) {
-        // macOS 27 ignores an item wider than the room it has (verified: 800 px pushes icons off, 1200 px is dropped),
-        // so size the separator to reach just the screen's left edge, measured while it is still narrow.
-        var length: CGFloat = 14
-        if c, !collapsed, let w = separator.button?.window {
-            length = max(14, w.frame.maxX - (w.screen?.frame.minX ?? 0) - 4)
-        }
         collapsed = c
-        separator.length = length
-        separator.button?.title = c ? "" : "┃"
-        dot.button?.title = c ? "•" : "◦"
+        generation += 1
         timer?.invalidate()
-        if !c && autoCollapseSeconds > 0 {
-            timer = Timer.scheduledTimer(withTimeInterval: autoCollapseSeconds, repeats: false) { [weak self] _ in
-                self?.set(collapsed: true)
+        dot.button?.title = c ? "•" : "◦"
+        separator.button?.title = c ? "" : "┃"
+        if c {
+            grow(generation, length: narrow, steps: [64, 16, 4], right: separator.button?.window?.frame.maxX ?? 0)
+        } else {
+            separator.length = narrow
+            if autoCollapseSeconds > 0 {
+                timer = Timer.scheduledTimer(withTimeInterval: autoCollapseSeconds, repeats: false) { [weak self] _ in
+                    self?.set(collapsed: true)
+                }
+            }
+        }
+    }
+
+    // macOS 27 ignores a status item wider than the room it has (it clamps the left edge at the app menus,
+    // and the room depends on the frontmost app), so widen the separator step by step until a step is refused,
+    // then back off to the last accepted width and refine with smaller steps.
+    func grow(_ gen: Int, length: CGFloat, steps: [CGFloat], right: CGFloat) {
+        guard gen == generation, let step = steps.first, let w = separator.button?.window else { return }
+        let next = length + step
+        separator.length = next
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [self] in
+            guard gen == generation else { return }
+            let f = w.frame
+            let accepted = abs(f.maxX - right) < 1 && abs(f.minX - (right - next - 3)) < 1
+            if accepted {
+                grow(gen, length: next, steps: steps, right: right)
+            } else {
+                separator.length = length
+                grow(gen, length: length, steps: Array(steps.dropFirst()), right: right)
             }
         }
     }
