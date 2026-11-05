@@ -11,12 +11,12 @@ dotbar owns two status items, created in this order because macOS places newer i
 `collapse()` widens the separator so the items on its left are pushed toward the app menus, where macOS 27 parks them behind its overflow arrow when there is no room. macOS drops a status item wider than its room, so `grow()` widens in steps of 64, 16 and 4 points, checks each step ~80 ms later (frames update asynchronously) and keeps the last accepted width. `expand()` shrinks the separator back to 14 points. A `generation` counter stops a stale `grow()`. Why this is unreliable: [findings.md](findings.md#macos-27-menu-bar-measured-through-accessibility-2026-11-05).
 
 ## Inventory
-`menuBarItems()` (`Sources/dotbar/Bar.swift`) walks the one AX window of `com.apple.MenuBarAgent`: one group per item, the owner's element inside. It skips dotbar's own items and Apple's MenuBarAgent-owned items (clock, battery, Wi-Fi, sound, Control Center). `overflowButton()` finds Apple's « chevron and whether it is expanded.
+`menuBarItems()` (`Sources/dotbar/Bar.swift`) walks the one AX window of `com.apple.MenuBarAgent`: one group per item, the owner's element as its first child (read one level only: while a menu is open, deeper levels are that menu, e.g. "About This Mac"). It skips dotbar's own items and Apple's MenuBarAgent-owned items (clock, battery, Wi-Fi, sound, Control Center). `overflowButton()` finds Apple's « chevron and whether it is expanded.
 
 `scan()` is the cheap re-read (nothing moves). The bar lists:
 - items whose centre is left of the separator (hidden by you);
 - items left of the collapsed chevron (parked by macOS);
-- **off-bar** items: seen earlier in this run (kept in `known` with their element) and gone from the bar while their app still runs, i.e. dropped by macOS for lack of room ([why](findings.md#laptop-screen-alone-notch-measured-2026-11-05));
+- **off-bar** items: dropped by macOS for lack of room while their app still runs. `known` keeps, per app, its items from the scan where it showed the most; when an app now shows fewer, that many remembered items (preferring ones whose element is no longer live) are listed. Counted, not matched, because third-party items have no `AXIdentifier` and their element changes whenever the app redraws (iStat Menus does constantly) ([why](findings.md#laptop-screen-alone-notch-measured-2026-11-05));
 - **ghosts**: apps whose icon was off the bar in an earlier run (bundle ids in the `offbar` user default) and not seen since. Shown dimmed with a tooltip; clicking activates the app, since there is no element to press until the icon has been seen once.
 
 An empty read (menu bar off screen) is ignored. Scans run on the dot click, on app launch (after 3 s) and quit; `refresh()` (shrink the separator, wait 0.4 s, scan, push again) runs at start, on display changes and from the menu. No polling.

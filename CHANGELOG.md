@@ -13,4 +13,5 @@
 - Clicking an icon in the bar picks the way that opens it: press directly when drawn, expand Apple's overflow chevron when parked behind it, or shrink the separator and press the remembered element.
 - Right-click the dot › Launch at login: registers the installed app as a login item (`SMAppService`, listed in System Settings › General › Login Items).
 - Arranging is reachable from the bar (slider button at its end); while arranging the dot shows ✓ and a hint under it explains the ⌘-drag until you click ✓.
+- Fix: the bar filled with duplicates and "About This Mac" entries (redrawn items were taken for dropped ones; a scan during an open menu read the menu). Drops are now counted per app.
 - Rescans on display changes, app launch/quit and every dot click; append-only timestamped log.

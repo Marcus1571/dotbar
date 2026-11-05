@@ -40,8 +40,8 @@ func menuBarItems() -> [Item] {
     else { return [] }
     var out: [Item] = []
     for g in (attr(win, kAXChildrenAttribute) as? [AXUIElement]) ?? [] {
-        var el = g
-        while let k = (attr(el, kAXChildrenAttribute) as? [AXUIElement])?.first { el = k }
+        // One level only: deeper is an open menu, whose first item ("About This Mac", ...) is not the status item.
+        guard let el = (attr(g, kAXChildrenAttribute) as? [AXUIElement])?.first else { continue }
         var pid: pid_t = 0
         AXUIElementGetPid(el, &pid)
         guard pid != getpid(), pid != agent, let app = NSRunningApplication(processIdentifier: pid) else { continue }

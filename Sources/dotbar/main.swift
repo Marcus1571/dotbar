@@ -12,7 +12,9 @@ final class App: NSObject, NSApplicationDelegate {
     let separator = NSStatusBar.system.statusItem(withLength: narrow)
     let bar = BarPanel()
     var hidden: [Item] = []
-    var known: [Item] = []   // every item seen while its app runs: macOS 27 drops items with no room and they leave no AX trace
+    // Per running app, its items from the scan where it showed the most. macOS 27 drops items with no room and they
+    // leave no AX trace; an app's item elements also change when it redraws, so drops are counted, not matched.
+    var known: [pid_t: [Item]] = [:]
     var arranging = false
     var generation = 0   // bumped on every layout change so a stale grow() stops
 
@@ -138,9 +140,16 @@ final class App: NSObject, NSApplicationDelegate {
         let all = menuBarItems()
         // An empty read means the menu bar is not on screen (full screen, display asleep): keep the last good state.
         guard !all.isEmpty else { log("scan (\(why)) skipped: menu bar not readable"); return }
-        known.removeAll { k in k.app.isTerminated || all.contains { $0.el == k.el } }
-        let gone = known
-        known += all
+        known = known.filter { !($0.value.first?.app.isTerminated ?? true) }
+        let now = Dictionary(grouping: all, by: \.app.processIdentifier)
+        for (pid, items) in now where items.count >= known[pid]?.count ?? 0 { known[pid] = items }
+        var gone: [Item] = []
+        for (pid, items) in known {
+            let live = now[pid] ?? []
+            guard live.count < items.count else { continue }
+            // ponytail: picks remembered items without a live match; may pick the wrong one when a redraw and a drop coincide.
+            gone += items.filter { k in !live.contains { $0.el == k.el } }.prefix(items.count - live.count)
+        }
         let sep = separator.button?.window?.frame.minX ?? 0
         let chevron = overflowButton().flatMap { $0.expanded ? nil : $0.x }
         // Apps whose icon was off the bar in an earlier run and is still not seen: listed dimmed, so nothing vanishes silently.
