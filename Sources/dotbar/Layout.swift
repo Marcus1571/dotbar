@@ -9,6 +9,7 @@ final class Layout {
         .appendingPathComponent("Library/Group Containers/com.apple.MenuBar/Library/Preferences/com.apple.MenuBar.plist")
     static let key = "TrailingItemPreferredPositions"
     static let separatorKey = "status:dotbar::dotbar.separator"
+    static let spacerKey = "status:dotbar::dotbar.spacer"
     private var scoped: URL?
 
     init() {
@@ -70,6 +71,13 @@ final class Layout {
             try PropertyListSerialization.data(fromPropertyList: p, format: .binary, options: 0).write(to: Self.file)
             log("layout write: cfprefsd sync=\(synced) did not reach the file; wrote the file directly, now matches=\(read() == positions)")
         } catch { log("layout write: failed, cfprefsd sync=\(synced), file write \(error)") }
+    }
+
+    // The spacer must sit right next to the separator (see App.spacer); a new item is placed leftmost by macOS.
+    func placeSpacer() {
+        guard let p = read(), let sep = p[Self.separatorKey], p[Self.spacerKey] != sep + 1 else { return }
+        log("spacer: \(p[Self.spacerKey].map { "\($0)" } ?? "absent") -> \(sep + 1)")
+        write(p.merging([Self.spacerKey: sep + 1]) { _, new in new })
     }
 
     // Two profiles, picked by what is attached: any display that is not the built-in one means "large".
@@ -221,7 +229,7 @@ final class SettingsWindow: NSObject, NSTableViewDataSource, NSTableViewDelegate
             + "Drag rows to reorder: top is next to the clock; everything below ┃ goes to dotbar's bar. "
             + (saved ? "" : "Not saved yet: showing the current menu bar.")
         keep = layout.profile(profileName) ?? layout.read() ?? [:]
-        rows = keep.keys.filter { !$0.hasPrefix("status:dotbar-dbg") }.sorted { keep[$0]! < keep[$1]! }
+        rows = keep.keys.filter { !$0.hasPrefix("status:dotbar-dbg") && $0 != Layout.spacerKey }.sorted { keep[$0]! < keep[$1]! }
         table.reloadData()
     }
 
@@ -235,7 +243,7 @@ final class SettingsWindow: NSObject, NSTableViewDataSource, NSTableViewDelegate
     @objc private func takeCurrent() {
         guard let now = layout.read() else { return }
         keep = now
-        rows = now.keys.filter { !$0.hasPrefix("status:dotbar-dbg") }.sorted { now[$0]! < now[$1]! }
+        rows = now.keys.filter { !$0.hasPrefix("status:dotbar-dbg") && $0 != Layout.spacerKey }.sorted { now[$0]! < now[$1]! }
         table.reloadData()
     }
 
@@ -243,6 +251,7 @@ final class SettingsWindow: NSObject, NSTableViewDataSource, NSTableViewDelegate
     @objc private func saveApply() {
         var p = keep
         for (i, k) in rows.enumerated() { p[k] = Double(i * 30) }
+        p[Layout.spacerKey] = (p[Layout.separatorKey] ?? 0) + 1
         layout.save(p, as: profileName)
         if profileName == Layout.activeProfile, let now = layout.read() {
             layout.write(now.merging(p) { _, new in new })

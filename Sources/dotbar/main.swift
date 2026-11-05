@@ -10,6 +10,9 @@ final class App: NSObject, NSApplicationDelegate {
     // Created dot first, separator second: macOS places newer items to the LEFT of older ones.
     let dot = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     let separator = NSStatusBar.system.statusItem(withLength: narrow)
+    // Invisible, just left of the separator: when an app's menus are short, macOS keeps the one item next to the
+    // pushed separator on screen; this makes that survivor ours instead of a hidden icon.
+    let spacer = NSStatusBar.system.statusItem(withLength: 1)
     let bar = BarPanel()
     let layout = Layout()
     lazy var settings = SettingsWindow(layout: layout)
@@ -19,11 +22,14 @@ final class App: NSObject, NSApplicationDelegate {
     var known: [pid_t: [Item]] = [:]
     var arranging = false
     var generation = 0   // bumped on every layout change so a stale grow() stops
+    var pushed = false   // collapsed: the separator is pushing; false while expanded (arranging, or an item is open)
+    var sepRight: CGFloat = 0   // the separator's right edge, fixed by the dot
 
     func applicationDidFinishLaunching(_ n: Notification) {
         _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary)
         dot.autosaveName = "dotbar.dot"
         separator.autosaveName = "dotbar.separator"
+        spacer.autosaveName = "dotbar.spacer"
         guard let b = dot.button else { return }
         b.target = self
         b.action = #selector(click)
@@ -36,12 +42,15 @@ final class App: NSObject, NSApplicationDelegate {
         ws.addObserver(forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { [weak self] _ in
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) { self?.scan("app launched") }
         }
+        // The room depends on the frontmost app's menus (findings.md), so a width fitted for one app is wrong for the next.
+        ws.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in self?.refit() }
         ws.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) { [weak self] _ in self?.scan("app quit") }
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self?.layout.applyActive(); self?.refresh() }
         }
         log("launch: layout access=\(layout.hasAccess) profile=\(Layout.activeProfile) saved=\(Layout.profileNames.filter { layout.profile($0) != nil })")
         layout.applyActive()
+        layout.placeSpacer()
         refresh()
     }
 
@@ -148,6 +157,8 @@ final class App: NSObject, NSApplicationDelegate {
 
     func expand() {
         generation += 1
+        pushed = false
+        spacer.length = 1
         dot.button?.title = "◦"
         separator.button?.title = "┃"
         separator.length = narrow
@@ -167,9 +178,31 @@ final class App: NSObject, NSApplicationDelegate {
 
     func collapse() {
         generation += 1
+        pushed = true
+        spacer.length = 40
         dot.button?.title = "•"
         separator.button?.title = ""
-        grow(generation, length: narrow, steps: [64, 16, 4], right: separator.button?.window?.frame.maxX ?? 0)
+        sepRight = separator.button?.window?.frame.maxX ?? 0
+        grow(generation, length: narrow, steps: [64, 16, 4], right: sepRight)
+    }
+
+    // After an app switch: shrink in 64-point steps while macOS refuses the width, then grow as usual. Starting from
+    // the current width (not from narrow) keeps hidden icons from flashing back on every switch.
+    func refit() {
+        guard pushed else { return }
+        generation += 1
+        shrink(generation)
+    }
+
+    func shrink(_ gen: Int) {
+        guard gen == generation, let w = separator.button?.window else { return }
+        let len = separator.length
+        if len <= narrow || abs(w.frame.minX - (sepRight - len - 3)) < 1 && abs(w.frame.maxX - sepRight) < 1 {
+            grow(gen, length: len, steps: [64, 16, 4], right: sepRight)
+            return
+        }
+        separator.length = max(narrow, len - 64)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [self] in shrink(gen) }
     }
 
     // macOS 27 ignores a status item wider than the room it has (it clamps the left edge at the app menus,
@@ -183,6 +216,7 @@ final class App: NSObject, NSApplicationDelegate {
             guard gen == generation else { return }
             let f = w.frame
             let accepted = abs(f.maxX - right) < 1 && abs(f.minX - (right - next - 3)) < 1
+            log("grow \(Int(next)) frame=\(Int(f.minX))..\(Int(f.maxX)) right=\(Int(right)) \(accepted ? "ok" : "refused")")
             if accepted {
                 grow(gen, length: next, steps: steps, right: right)
             } else {
