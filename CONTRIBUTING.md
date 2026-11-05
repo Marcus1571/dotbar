@@ -3,7 +3,7 @@
 Small project, small rules.
 
 1. **No dependencies.** Plain Swift and AppKit.
-2. **No permissions.** The collapse-only core must never need Screen Recording or Accessibility.
+2. **Least permission.** Accessibility only. Never require Screen Recording.
 3. **Never commit secrets.**
 
 Build with `./scripts/build-app.sh`.
