@@ -22,6 +22,7 @@ final class App: NSObject, NSApplicationDelegate {
         b.target = self
         b.action = #selector(click)
         b.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        bar.onPress = { [weak self] in self?.open($0) }
         refresh()
     }
 
@@ -46,6 +47,22 @@ final class App: NSObject, NSApplicationDelegate {
     @objc func toggleArranging() {
         arranging.toggle()
         if arranging { expand() } else { refresh() }
+    }
+
+    // Bring the hidden icons back, press the chosen one, and push them away again after the next click anywhere
+    // (that click closes its menu).
+    func open(_ it: Item) {
+        expand()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [self] in
+            let err = AXUIElementPerformAction(it.el, kAXPressAction as CFString)
+            var m: Any?
+            m = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] _ in
+                if let mm = m { NSEvent.removeMonitor(mm) }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { if self?.arranging == false { self?.collapse() } }
+            }
+            let line = "press \(it.app.localizedName ?? "?") -> AXError \(err.rawValue)\n"
+            if let h = FileHandle(forWritingAtPath: "/tmp/dotbar.log") { h.seekToEndOfFile(); h.write(Data(line.utf8)); h.closeFile() }
+        }
     }
 
     func expand() {

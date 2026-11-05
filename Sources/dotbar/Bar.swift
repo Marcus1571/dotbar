@@ -37,6 +37,7 @@ final class BarPanel {
     private var monitor: Any?
     private var items: [Item] = []
     var isShown: Bool { panel.isVisible }
+    var onPress: ((Item) -> Void)?
 
     init() {
         panel.level = .statusBar
@@ -56,9 +57,15 @@ final class BarPanel {
         for (i, it) in items.enumerated() {
             let b = NSButton()
             b.isBordered = false
-            b.imagePosition = it.title.isEmpty || perApp[it.app.processIdentifier] == 1 ? .imageOnly : .imageLeft
-            b.image = it.app.icon.map { $0.resized(20) }
-            b.title = b.imagePosition == .imageOnly ? "" : " " + String(it.title.split(separator: "\n").first ?? "").prefix(16)
+            // Apple's menu-extra agents have no real icon (just a generic placeholder), so label those with text.
+            let textOnly = it.app.bundleIdentifier?.hasPrefix("com.apple.") ?? false
+            b.imagePosition = textOnly ? .noImage : (it.title.isEmpty || perApp[it.app.processIdentifier] == 1 ? .imageOnly : .imageLeft)
+            if b.imagePosition != .noImage { b.image = it.app.icon.map { $0.resized(20) } }
+            if textOnly {
+                b.title = (it.app.localizedName ?? "?").replacingOccurrences(of: "MenuExtra", with: "").replacingOccurrences(of: "MenuAgent", with: "").replacingOccurrences(of: "Agent", with: "")
+            } else {
+                b.title = b.imagePosition == .imageOnly ? "" : " " + String(it.title.split(separator: "\n").first ?? "").prefix(16)
+            }
             b.font = .systemFont(ofSize: 11)
             b.toolTip = "\(it.app.localizedName ?? "") \(it.title)".trimmingCharacters(in: .whitespaces)
             b.tag = i
@@ -96,7 +103,7 @@ final class BarPanel {
     @objc private func press(_ b: NSButton) {
         let it = items[b.tag]
         hide()
-        AXUIElementPerformAction(it.el, kAXPressAction as CFString)
+        onPress?(it)
     }
 }
 
