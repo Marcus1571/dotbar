@@ -75,7 +75,7 @@ final class App: NSObject, NSApplicationDelegate {
         expand()
         dot.button?.title = "✓"
         if let f = dot.button?.window?.frame {
-            bar.show([], below: f, hint: "Hold ⌘ and drag icons in the menu bar: left of ┃ = hidden here, right of ┃ = stays in the menu bar. Click ✓ when done.")
+            bar.show([], below: f, hint: "Icons left of ┃ leave the menu bar and appear when you click the dot. Hold ⌘ and drag an icon across ┃ to move it. Click ✓ when done.")
         }
     }
 
