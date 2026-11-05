@@ -11,6 +11,8 @@ final class App: NSObject, NSApplicationDelegate {
     let dot = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     let separator = NSStatusBar.system.statusItem(withLength: narrow)
     let bar = BarPanel()
+    let layout = Layout()
+    lazy var settings = SettingsWindow(layout: layout)
     var hidden: [Item] = []
     // Per running app, its items from the scan where it showed the most. macOS 27 drops items with no room and they
     // leave no AX trace; an app's item elements also change when it redraws, so drops are counted, not matched.
@@ -28,6 +30,7 @@ final class App: NSObject, NSApplicationDelegate {
         b.sendAction(on: [.leftMouseUp, .rightMouseUp])
         bar.onPress = { [weak self] in self?.open($0) }
         bar.onArrange = { [weak self] in self?.toggleArranging() }
+        settings.onApplied = { [weak self] in DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self?.refresh() } }
         // Rescan when the room changes or an app may have added an item; no polling.
         let ws = NSWorkspace.shared.notificationCenter
         ws.addObserver(forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { [weak self] _ in
@@ -35,10 +38,14 @@ final class App: NSObject, NSApplicationDelegate {
         }
         ws.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) { [weak self] _ in self?.scan("app quit") }
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self?.refresh() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self?.layout.applyActive(); self?.refresh() }
         }
+        log("launch: layout access=\(layout.hasAccess) profile=\(Layout.activeProfile) saved=\(Layout.profileNames.filter { layout.profile($0) != nil })")
+        layout.applyActive()
         refresh()
     }
+
+    @objc func openSettings() { settings.show() }
 
     @objc func click() {
         guard let e = NSApp.currentEvent else { return }
@@ -47,7 +54,7 @@ final class App: NSObject, NSApplicationDelegate {
             m.addItem(withTitle: arranging ? "Done arranging" : "Arrange icons…", action: #selector(toggleArranging), keyEquivalent: "")
             m.addItem(withTitle: "Refresh hidden icons", action: #selector(refreshAction), keyEquivalent: "")
             m.addItem(.separator())
-            m.addItem(withTitle: "Menu bar layout access…", action: #selector(grantLayout), keyEquivalent: "")
+            m.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
             m.addItem(withTitle: "Launch at login", action: #selector(toggleLogin), keyEquivalent: "").state =
                 SMAppService.mainApp.status == .enabled ? .on : .off
             m.addItem(withTitle: "Quit dotbar", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -64,32 +71,6 @@ final class App: NSObject, NSApplicationDelegate {
 
     @objc func refreshAction() { refresh() }
 
-    // macOS 27 keeps the menu-bar order in MenuBarAgent's group container, which refuses every read until the user
-    // picks the file (or folder) in an open panel; the panel runs in a system process and hands the access back.
-    // ponytail: probe stage, copies what was picked to /tmp/dotbar-layout to learn the format; profiles come next.
-    @objc func grantLayout() {
-        let p = NSOpenPanel()
-        p.canChooseFiles = true; p.canChooseDirectories = true; p.allowsMultipleSelection = true
-        p.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Group Containers/com.apple.MenuBar")
-        p.message = "Select the menu bar layout file (or the whole folder) so dotbar can read and rearrange it."
-        p.prompt = "Grant Access"
-        NSApp.activate(ignoringOtherApps: true)
-        guard p.runModal() == .OK else { log("layout access: panel cancelled"); return }
-        let out = URL(fileURLWithPath: "/tmp/dotbar-layout")
-        try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
-        for u in p.urls {
-            if let b = try? u.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
-                UserDefaults.standard.set(b, forKey: "layoutBookmark")
-            }
-            let files = FileManager.default.enumerator(at: u, includingPropertiesForKeys: nil)?.compactMap { $0 as? URL } ?? [u]
-            for f in files + [u] {
-                let d = FileManager.default.contents(atPath: f.path)
-                log("layout access: \(f.path) readable=\(d != nil) bytes=\(d?.count ?? -1) writable=\(FileManager.default.isWritableFile(atPath: f.path))")
-                if let d { try? d.write(to: out.appendingPathComponent(f.path.replacingOccurrences(of: "/", with: "_"))) }
-            }
-        }
-    }
-
     // Registers the installed app as a login item (System Settings > General > Login Items).
     @objc func toggleLogin() {
         let s = SMAppService.mainApp
@@ -100,7 +81,7 @@ final class App: NSObject, NSApplicationDelegate {
     @objc func toggleArranging() {
         arranging.toggle()
         bar.hide()
-        guard arranging else { refresh(); return }
+        guard arranging else { layout.captureActive(); refresh(); return }
         expand()
         dot.button?.title = "✓"
         if let f = dot.button?.window?.frame {

@@ -34,10 +34,20 @@ The menu always opens under the item's real position in the menu bar (macOS give
 - **absent** (pushed by the separator, or dropped): shrink the separator, wait 0.5 s, press the remembered element, push again after the next click or key.
 
 ## dotbar's menu
-Arrange icons… / Done arranging (shows `┃` so you can ⌘-drag icons across it), Refresh hidden icons (re-reads the inventory), Launch at login (checkmark = registered with `SMAppService.mainApp`, i.e. the copy in `~/Applications`; result in the log), Quit dotbar.
+Arrange icons… / Done arranging (shows `┃` so you can ⌘-drag icons across it), Refresh hidden icons (re-reads the inventory), Settings… (see above), Launch at login (checkmark = registered with `SMAppService.mainApp`, i.e. the copy in `~/Applications`; result in the log), Quit dotbar.
+
+## Layout file and profiles
+macOS 27 keeps the menu-bar order in `~/Library/Group Containers/com.apple.MenuBar/Library/Preferences/com.apple.MenuBar.plist`, key `TrailingItemPreferredPositions`: item key → distance from the right edge (`module:Clock` is 0; larger is further left). Keys are `status:<bundle id or app name>::<autosave name>` (`Item-0` when the app gave none) or `module:<Apple module>`. dotbar's separator is `status:dotbar::dotbar.separator`, so "hidden" is simply "larger than the separator's value". Only the order matters to dotbar; it writes positions 0, 30, 60… in list order.
+
+The container refuses reads until the user picks the file in an open panel (Settings › Grant Access); dotbar stores a security-scoped bookmark, and the grant persists across launches. `Layout` (`Sources/dotbar/Layout.swift`) reads the file and writes through `CFPreferencesSetValue` with the absolute-path domain, falling back to a direct file write; the log says which one took (`layout write:`).
+
+Two profiles, picked automatically: **Large display** while any non-built-in display is attached (`CGDisplayIsBuiltin`), else **Laptop screen**. A profile is a saved copy of the dictionary (user default `profiles`). It is saved when you click ✓ after ⌘-drag arranging (the current order becomes the active profile) or with Settings › Save and Apply. It is applied at launch and on display changes, once per switch, merged over the current file so unknown new items keep their place.
+
+## Settings window
+Right-click the dot › Settings… (⌘,). Access status with a plain explanation and Grant Access; a segmented control for the two profiles (the active one is marked "In use now"); the profile as a list, drag to reorder, top next to the clock, the `┃` row splitting menu bar (above) from dotbar's bar (below); dimmed rows are apps not running. *Take from the menu bar* reloads the list from the current order; *Save and Apply* saves the profile and, if it is the active one, writes it and rescans.
 
 ## Permissions
-Accessibility only (macOS 27: Privacy & Security → *Device Control and Data Access*). Prompted on first launch. No Screen Recording, no network.
+Accessibility (macOS 27: Privacy & Security → *Device Control and Data Access*), prompted on first launch. Optional: the layout file, granted by picking it (see above). No Screen Recording, no Full Disk Access, no network.
 
 ## Build
 `scripts/build-app.sh` compiles `Sources/dotbar/*.swift` with plain `swiftc -O` (no SwiftPM, no Xcode), target macOS 14, into `build/dotbar.app` (bundle id `local.dotbar`, `LSUIElement`). `--install` copies it to `~/Applications`, kills the running copy and launches the new one.

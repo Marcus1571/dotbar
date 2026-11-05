@@ -9,7 +9,7 @@ A macOS menu-bar manager (Swift/AppKit, plain `swiftc`): hide menu-bar icons and
 [STATUS.md](STATUS.md) (where things stand, the next step), then [findings.md](findings.md) (what macOS 27 does, measured), then [KB.md](KB.md) (how dotbar works).
 
 ## Rules
-- Accessibility only. Never require Screen Recording, never touch the network.
+- Accessibility, plus (optional, for profiles) access to the one menu-bar layout file the user picks in an open panel (operator decision 2026-11-05). Never require Screen Recording or Full Disk Access, never touch the network.
 - No dependencies. Idle CPU near 0, no polling; check after UI changes with `top -l 3 -s 10 -pid $(pgrep -x dotbar) -stats pid,cpu,idlew`.
 - Build and run: `scripts/build-app.sh --install`. Debug log: `/tmp/dotbar.log`.
 - The agent cannot take screenshots (the terminal has no Screen Recording). It *can* read the live menu bar through Accessibility from small Swift probes, so measure first and ask the operator only for what needs eyes (what appears on screen) or hands (unplugging a display).
