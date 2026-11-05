@@ -57,13 +57,17 @@ final class BarPanel {
         for (i, it) in items.enumerated() {
             let b = NSButton()
             b.isBordered = false
-            // Apple's menu-extra agents have no real icon (just a generic placeholder), so label those with text.
-            let textOnly = it.app.bundleIdentifier?.hasPrefix("com.apple.") ?? false
-            b.imagePosition = textOnly ? .noImage : (it.title.isEmpty || perApp[it.app.processIdentifier] == 1 ? .imageOnly : .imageLeft)
-            if b.imagePosition != .noImage { b.image = it.app.icon.map { $0.resized(20) } }
-            if textOnly {
-                b.title = (it.app.localizedName ?? "?").replacingOccurrences(of: "MenuExtra", with: "").replacingOccurrences(of: "MenuAgent", with: "").replacingOccurrences(of: "Agent", with: "")
+            // Apple's menu-extra agents have no real icon (just a generic placeholder), so use a matching SF Symbol.
+            let symbols = ["com.apple.KerberosMenuExtra": "key.fill", "com.apple.TextInputMenuAgent": "keyboard"]
+            let sym = it.app.bundleIdentifier.flatMap { symbols[$0] }
+            let appleAgent = it.app.bundleIdentifier?.hasPrefix("com.apple.") ?? false
+            if appleAgent {
+                b.imagePosition = .imageOnly
+                b.image = NSImage(systemSymbolName: sym ?? "square.grid.2x2", accessibilityDescription: it.app.localizedName)?
+                    .withSymbolConfiguration(.init(pointSize: 15, weight: .regular))
             } else {
+                b.imagePosition = it.title.isEmpty || perApp[it.app.processIdentifier] == 1 ? .imageOnly : .imageLeft
+                b.image = it.app.icon.map { $0.resized(20) }
                 b.title = b.imagePosition == .imageOnly ? "" : " " + String(it.title.split(separator: "\n").first ?? "").prefix(16)
             }
             b.font = .systemFont(ofSize: 11)
