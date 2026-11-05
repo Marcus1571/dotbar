@@ -13,7 +13,7 @@ No tool can open another app's menu or popover under dotbar's bar: the app ancho
 - Built the same day: memory of every seen item, three press paths (drawn / parked / absent), persisted off-bar list with dimmed ghosts.
 - **To verify by the operator:** (1) plug in the external display once, unplug, open the bar: the icons that were dropped should be listed and open on click; plain-menu items like Kerberos are the open question. (2) Click an icon parked behind «: the chevron should expand and its menu open left of the notch.
 
-- Profiles built 2026-11-05 (Settings window, auto-switch). Writes go through cfprefsd, and MenuBarAgent honoured a new item's written position. **Still open:** does it reorder *existing* icons live on Save and Apply? If not, restart MenuBarAgent after a write.
+- Profiles built 2026-11-05 (Settings window, auto-switch). Writes go through cfprefsd, and MenuBarAgent honoured a new item's written position. Writing an order reorders icons on screen live (verified: the Large display profile's order is what the menu bar shows).
 
 ## Known limits
 - An icon macOS drops before dotbar ever saw it in this run cannot be pressed; it shows dimmed (if remembered) until there is room once.

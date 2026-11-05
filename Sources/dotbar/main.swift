@@ -46,20 +46,34 @@ final class App: NSObject, NSApplicationDelegate {
         ws.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] _ in self?.refit() }
         ws.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) { [weak self] _ in self?.scan("app quit") }
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self?.layout.applyActive(); self?.refresh() }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self?.layout.applyForDisplay(); self?.refresh() }
         }
-        log("launch: layout access=\(layout.hasAccess) profile=\(Layout.activeProfile) saved=\(Layout.profileNames.filter { layout.profile($0) != nil })")
-        layout.applyActive()
+        log("launch: layout access=\(layout.hasAccess) profile=\(layout.current) display=\(Layout.displayProfile) saved=\(Layout.profileNames.filter { layout.profile($0) != nil })")
+        layout.applyForDisplay()
         layout.placeSpacer()
         refresh()
     }
 
     @objc func openSettings() { settings.show() }
 
+    @objc func pickProfile(_ i: NSMenuItem) {
+        guard let name = i.representedObject as? String else { return }
+        layout.apply(name)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [self] in refresh() }
+    }
+
     @objc func click() {
         guard let e = NSApp.currentEvent else { return }
         if e.type == .rightMouseUp || e.modifierFlags.contains(.option) {
             let m = NSMenu()
+            if layout.hasAccess {
+                for name in Layout.profileNames {
+                    let i = m.addItem(withTitle: name, action: #selector(pickProfile(_:)), keyEquivalent: "")
+                    i.state = name == layout.current ? .on : .off
+                    i.representedObject = name
+                }
+                m.addItem(.separator())
+            }
             m.addItem(withTitle: arranging ? "Done arranging" : "Arrange icons…", action: #selector(toggleArranging), keyEquivalent: "")
             m.addItem(withTitle: "Refresh hidden icons", action: #selector(refreshAction), keyEquivalent: "")
             m.addItem(.separator())
@@ -90,7 +104,7 @@ final class App: NSObject, NSApplicationDelegate {
     @objc func toggleArranging() {
         arranging.toggle()
         bar.hide()
-        guard arranging else { layout.captureActive(); refresh(); return }
+        guard arranging else { layout.captureCurrent(); refresh(); return }
         expand()
         dot.button?.title = "✓"
         if let f = dot.button?.window?.frame {

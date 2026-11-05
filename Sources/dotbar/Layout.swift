@@ -80,13 +80,19 @@ final class Layout {
         write(p.merging([Self.spacerKey: sep + 1]) { _, new in new })
     }
 
-    // Two profiles, picked by what is attached: any display that is not the built-in one means "large".
-    static var activeProfile: String {
+    // Two profiles. The display decides when it changes (any display that is not the built-in one means "large");
+    // the user can pick the other one any time from the dot's menu.
+    static var displayProfile: String {
         NSScreen.screens.contains { s in
             (s.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber).map { CGDisplayIsBuiltin($0.uint32Value) == 0 } ?? false
         } ? "Large display" : "Laptop screen"
     }
     static let profileNames = ["Large display", "Laptop screen"]
+
+    var current: String {
+        get { UserDefaults.standard.string(forKey: "profile") ?? Self.displayProfile }
+        set { UserDefaults.standard.set(newValue, forKey: "profile") }
+    }
 
     func profile(_ name: String) -> [String: Double]? {
         (UserDefaults.standard.dictionary(forKey: "profiles")?[name] as? [String: Any])?.compactMapValues { ($0 as? NSNumber)?.doubleValue }
@@ -99,21 +105,29 @@ final class Layout {
         log("profile \(name): saved \(positions.count) items")
     }
 
-    // The arrangement just made by ⌘-drag becomes the active profile.
-    func captureActive() {
+    // The arrangement just made by ⌘-drag becomes the current profile.
+    func captureCurrent() {
         guard let now = read() else { return }
-        save(now, as: Self.activeProfile)
+        save(now, as: current)
     }
 
-    private var lastApplied: String?
-    // On display changes: put the active profile's order in place, once per switch.
-    func applyActive() {
-        let name = Self.activeProfile
-        guard name != lastApplied, let p = profile(name), let now = read() else { return }
-        lastApplied = name
-        guard p != now else { return }
+    // At launch and on display changes: switch to the display's profile only when the display setup changed since the
+    // last switch, so a profile picked by hand survives restarts.
+    func applyForDisplay() {
+        let d = Self.displayProfile
+        guard d != UserDefaults.standard.string(forKey: "profileDisplay") else { return }
+        UserDefaults.standard.set(d, forKey: "profileDisplay")
+        apply(d)
+    }
+
+    // Makes the profile current and writes its order (merged over the file so new items keep their place).
+    func apply(_ name: String) {
+        current = name
+        guard let p = profile(name), let now = read() else { log("profile \(name): current, nothing saved to apply"); return }
+        let merged = now.merging(p) { _, new in new }
+        guard merged != now else { log("profile \(name): current, already in place"); return }
         log("profile \(name): applying")
-        write(now.merging(p) { _, new in new })
+        write(merged)
     }
 }
 
@@ -146,7 +160,7 @@ final class SettingsWindow: NSObject, NSTableViewDataSource, NSTableViewDelegate
     private var window: NSWindow?
     private var rows: [String] = []
     private var keep: [String: Double] = [:]   // the profile's values, kept for keys not shown
-    private var profileName = Layout.activeProfile
+    private lazy var profileName = layout.current
     private let table = NSTableView()
     private let status = NSTextField(wrappingLabelWithString: "")
     private let grant = NSButton(title: "Grant Access…", target: nil, action: nil)
@@ -158,7 +172,7 @@ final class SettingsWindow: NSObject, NSTableViewDataSource, NSTableViewDelegate
 
     func show() {
         if window == nil { build() }
-        profileName = Layout.activeProfile
+        profileName = layout.current
         reload()
         NSApp.activate(ignoringOtherApps: true)
         window?.makeKeyAndOrderFront(nil)
@@ -225,7 +239,7 @@ final class SettingsWindow: NSObject, NSTableViewDataSource, NSTableViewDelegate
         table.isEnabled = access
         picker.selectedSegment = Layout.profileNames.firstIndex(of: profileName) ?? 0
         let saved = layout.profile(profileName) != nil
-        note.stringValue = (profileName == Layout.activeProfile ? "In use now. " : "Used when \(profileName == "Large display" ? "an external display is attached" : "only the laptop screen is on"). ")
+        note.stringValue = (profileName == layout.current ? "In use now. " : "Switched to automatically when \(profileName == "Large display" ? "an external display is attached" : "only the laptop screen is on"), or pick it from the dot's menu. ")
             + "Drag rows to reorder: top is next to the clock; everything below ┃ goes to dotbar's bar. "
             + (saved ? "" : "Not saved yet: showing the current menu bar.")
         keep = layout.profile(profileName) ?? layout.read() ?? [:]
@@ -253,10 +267,8 @@ final class SettingsWindow: NSObject, NSTableViewDataSource, NSTableViewDelegate
         for (i, k) in rows.enumerated() { p[k] = Double(i * 30) }
         p[Layout.spacerKey] = (p[Layout.separatorKey] ?? 0) + 1
         layout.save(p, as: profileName)
-        if profileName == Layout.activeProfile, let now = layout.read() {
-            layout.write(now.merging(p) { _, new in new })
-            onApplied?()
-        }
+        layout.apply(profileName)
+        onApplied?()
         reload()
     }
 

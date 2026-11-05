@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Profiles in the dot's right-click menu: pick *Large display* or *Laptop screen* and it is applied at once (checkmark on the current one). Plugging or unplugging a display still switches automatically.
+- Fix: Save and Apply for the profile not matching the attached display only saved it; it now applies it.
+
 ## 0.1.0 (2026-11-05)
 
 - Dot + `┃` separator; icons left of the separator are hidden by pushing them away with a wide separator. Because macOS 27 drops items wider than the room it has, the separator grows in steps until macOS refuses (the room depends on the frontmost app).
