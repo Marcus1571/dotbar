@@ -60,7 +60,10 @@ final class App: NSObject, NSApplicationDelegate {
         expand()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [self] in
             guard !arranging, let w = separator.button?.window else { return }
-            hidden = menuBarItems().filter { $0.x + $0.w / 2 < w.frame.minX }
+            let all = menuBarItems()
+            hidden = all.filter { $0.x + $0.w / 2 < w.frame.minX }
+            let lines = all.map { i in "\(hidden.contains { $0.el == i.el } ? "HIDDEN" : "shown ") x=\(Int(i.x)) \(i.app.localizedName ?? "?") \(i.title.prefix(30))" }
+            try? "trusted=\(AXIsProcessTrusted()) sepMinX=\(Int(w.frame.minX)) items=\(all.count) hidden=\(hidden.count)\n\(lines.joined(separator: "\n"))\n".write(toFile: "/tmp/dotbar.log", atomically: true, encoding: .utf8)
             collapse()
         }
     }

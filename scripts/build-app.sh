@@ -1,5 +1,6 @@
 #!/bin/zsh
-# Builds build/dotbar.app (ad hoc signed). Pass --install to also copy it to ~/Applications and launch it.
+# Builds build/dotbar.app. Signs with the local "dotbar local signing" certificate when it exists in the login keychain
+# (keeps the Accessibility grant across rebuilds), else ad hoc, in which case macOS forgets the grant on every rebuild. Pass --install to also copy it to ~/Applications and launch it.
 set -euo pipefail
 cd "${0:A:h:h}"
 mkdir -p build
@@ -21,7 +22,9 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>LSUIElement</key><true/>
 </dict></plist>
 PLIST
-codesign --force --sign - "$APP"
+IDENTITY="${SIGN_IDENTITY:-dotbar local signing}"
+security find-identity -p codesigning | grep -q "\"$IDENTITY\"" || IDENTITY="-"
+codesign --force --sign "$IDENTITY" "$APP"
 echo "Built $APP"
 if [[ "${1:-}" == "--install" ]]; then
   pkill -x dotbar 2>/dev/null || true

@@ -74,6 +74,11 @@ final class BarPanel {
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: fx.leadingAnchor), stack.trailingAnchor.constraint(equalTo: fx.trailingAnchor),
             stack.topAnchor.constraint(equalTo: fx.topAnchor), stack.bottomAnchor.constraint(equalTo: fx.bottomAnchor)])
+        if items.isEmpty {
+            let l = NSTextField(labelWithString: "No hidden icons")
+            l.font = .systemFont(ofSize: 11); l.textColor = .secondaryLabelColor
+            stack.addArrangedSubview(l)
+        }
         panel.contentView = fx
         let size = stack.fittingSize
         let screen = NSScreen.screens.first { $0.frame.intersects(anchor) } ?? NSScreen.main!
