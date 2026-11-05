@@ -7,6 +7,7 @@ Built because Bartender 6 stopped working on macOS 27, which draws every menu-ba
 ## How it works
 - dotbar puts a dot and a separator in the menu bar; [icons left of the separator are the hidden ones](KB.md#hiding-pushing).
 - Click the dot and a small [bar appears under the menu bar](KB.md#the-bar-below-the-menu-bar) with those icons (app icons, live text where the app exposes it). Click one and [its real menu opens](KB.md#opening-an-item).
+- Click the slider at the end of the bar to choose which icons live there (⌘-drag them across `┃`).
 - Right-click the dot to arrange icons, refresh the list, launch at login or quit.
 
 ## Permissions

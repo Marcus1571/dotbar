@@ -22,7 +22,10 @@ dotbar owns two status items, created in this order because macOS places newer i
 An empty read (menu bar off screen) is ignored. Scans run on the dot click, on app launch (after 3 s) and quit; `refresh()` (shrink the separator, wait 0.4 s, scan, push again) runs at start, on display changes and from the menu. No polling.
 
 ## The bar below the menu bar
-`BarPanel` is a borderless non-activating `NSPanel` at status-bar level, on all Spaces, right-aligned under the dot. One button per hidden item: the app icon; a short text label when an app has several items; SF Symbols for Apple agents without an icon (`KerberosMenuExtra` → `key.fill`, `TextInputMenuAgent` → `keyboard`, other `com.apple.*` → `square.grid.2x2`). Any click outside closes it.
+`BarPanel` is a borderless non-activating `NSPanel` at status-bar level, on all Spaces, right-aligned under the dot. One button per hidden item: the app icon; a short text label when an app has several items; SF Symbols for Apple agents without an icon (`KerberosMenuExtra` → `key.fill`, `TextInputMenuAgent` → `keyboard`, other `com.apple.*` → `square.grid.2x2`). The last button (`slider.horizontal.3`) starts arranging. Any click outside closes it.
+
+## Arranging
+Started from the bar's slider button or the menu. Shrinks the separator (hidden icons come back, `┃` shows), the dot shows `✓`, and a text-only bar under the dot explains the ⌘-drag and stays up (no outside-click monitor, since the drags are outside clicks). Clicking `✓` (or *Done arranging*) closes the hint and runs `refresh()`, which re-reads positions and pushes again. Which icons are hidden is purely their position left of `┃`; on the laptop screen alone the separator itself is dropped, so arrange with a larger display attached.
 
 ## Opening an item
 The menu always opens under the item's real position in the menu bar (macOS gives no other choice, see [findings.md](findings.md#why-the-other-menu-bar-managers-broke-on-macos-27-read-2026-11-05)), so `open()` first makes sure it is drawn, by path:

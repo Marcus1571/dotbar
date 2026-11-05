@@ -25,6 +25,7 @@ final class App: NSObject, NSApplicationDelegate {
         b.action = #selector(click)
         b.sendAction(on: [.leftMouseUp, .rightMouseUp])
         bar.onPress = { [weak self] in self?.open($0) }
+        bar.onArrange = { [weak self] in self?.toggleArranging() }
         // Rescan when the room changes or an app may have added an item; no polling.
         let ws = NSWorkspace.shared.notificationCenter
         ws.addObserver(forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { [weak self] _ in
@@ -48,6 +49,8 @@ final class App: NSObject, NSApplicationDelegate {
                 SMAppService.mainApp.status == .enabled ? .on : .off
             m.addItem(withTitle: "Quit dotbar", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
             dot.menu = m; dot.button?.performClick(nil); dot.menu = nil
+        } else if arranging {
+            toggleArranging()
         } else if bar.isShown {
             bar.hide()
         } else if let f = dot.button?.window?.frame {
@@ -67,7 +70,13 @@ final class App: NSObject, NSApplicationDelegate {
 
     @objc func toggleArranging() {
         arranging.toggle()
-        if arranging { expand() } else { refresh() }
+        bar.hide()
+        guard arranging else { refresh(); return }
+        expand()
+        dot.button?.title = "✓"
+        if let f = dot.button?.window?.frame {
+            bar.show([], below: f, hint: "Hold ⌘ and drag icons in the menu bar: left of ┃ = hidden here, right of ┃ = stays in the menu bar. Click ✓ when done.")
+        }
     }
 
     // An app opens its menu under its icon's real position, so the icon must be drawn when pressed. Drawn: press it.

@@ -61,6 +61,7 @@ final class BarPanel {
     private var items: [Item] = []
     var isShown: Bool { panel.isVisible }
     var onPress: ((Item) -> Void)?
+    var onArrange: (() -> Void)?
 
     init() {
         panel.level = .statusBar
@@ -71,7 +72,9 @@ final class BarPanel {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
     }
 
-    func show(_ items: [Item], below anchor: NSRect) {
+    // hint: a text-only bar that stays up until hide() (outside clicks are the ⌘-drags it explains).
+    func show(_ items: [Item], below anchor: NSRect, hint: String? = nil) {
+        hide()
         self.items = items
         let perApp = Dictionary(grouping: items, by: { $0.app.processIdentifier }).mapValues(\.count)
         let stack = NSStackView()
@@ -112,10 +115,22 @@ final class BarPanel {
         NSLayoutConstraint.activate([
             stack.leadingAnchor.constraint(equalTo: fx.leadingAnchor), stack.trailingAnchor.constraint(equalTo: fx.trailingAnchor),
             stack.topAnchor.constraint(equalTo: fx.topAnchor), stack.bottomAnchor.constraint(equalTo: fx.bottomAnchor)])
-        if items.isEmpty {
-            let l = NSTextField(labelWithString: "No hidden icons")
-            l.font = .systemFont(ofSize: 11); l.textColor = .secondaryLabelColor
+        if let hint {
+            let l = NSTextField(labelWithString: hint)
+            l.font = .systemFont(ofSize: 12)
             stack.addArrangedSubview(l)
+        } else {
+            if items.isEmpty {
+                let l = NSTextField(labelWithString: "No hidden icons")
+                l.font = .systemFont(ofSize: 11); l.textColor = .secondaryLabelColor
+                stack.addArrangedSubview(l)
+            }
+            let a = NSButton(image: NSImage(systemSymbolName: "slider.horizontal.3", accessibilityDescription: "Arrange icons")!,
+                             target: self, action: #selector(arrange))
+            a.isBordered = false
+            a.contentTintColor = .secondaryLabelColor
+            a.toolTip = "Choose which icons live here"
+            stack.addArrangedSubview(a)
         }
         panel.contentView = fx
         let size = stack.fittingSize
@@ -123,12 +138,18 @@ final class BarPanel {
         let x = min(max(anchor.maxX - size.width, screen.frame.minX + 4), screen.frame.maxX - size.width - 4)
         panel.setFrame(NSRect(x: x, y: anchor.minY - 4 - size.height, width: size.width, height: size.height), display: true)
         panel.orderFrontRegardless()
+        guard hint == nil else { return }
         monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in self?.hide() }
     }
 
     func hide() {
         panel.orderOut(nil)
         if let m = monitor { NSEvent.removeMonitor(m); monitor = nil }
+    }
+
+    @objc private func arrange() {
+        hide()
+        onArrange?()
     }
 
     @objc private func press(_ b: NSButton) {
