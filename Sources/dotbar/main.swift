@@ -11,6 +11,7 @@ final class App: NSObject, NSApplicationDelegate {
     let separator = NSStatusBar.system.statusItem(withLength: narrow)
     let bar = BarPanel()
     var hidden: [Item] = []
+    var known: [Item] = []   // every item seen while its app runs: macOS 27 drops items with no room and they leave no AX trace
     var arranging = false
     var generation = 0   // bumped on every layout change so a stale grow() stops
 
@@ -23,6 +24,15 @@ final class App: NSObject, NSApplicationDelegate {
         b.action = #selector(click)
         b.sendAction(on: [.leftMouseUp, .rightMouseUp])
         bar.onPress = { [weak self] in self?.open($0) }
+        // Rescan when the room changes or an app may have added an item; no polling.
+        let ws = NSWorkspace.shared.notificationCenter
+        ws.addObserver(forName: NSWorkspace.didLaunchApplicationNotification, object: nil, queue: .main) { [weak self] _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { self?.scan("app launched") }
+        }
+        ws.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) { [weak self] _ in self?.scan("app quit") }
+        NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self?.refresh() }
+        }
         refresh()
     }
 
@@ -38,6 +48,7 @@ final class App: NSObject, NSApplicationDelegate {
         } else if bar.isShown {
             bar.hide()
         } else if let f = dot.button?.window?.frame {
+            scan("dot")
             bar.show(hidden, below: f)
         }
     }
@@ -49,20 +60,54 @@ final class App: NSObject, NSApplicationDelegate {
         if arranging { expand() } else { refresh() }
     }
 
-    // Bring the hidden icons back, press the chosen one, and push them away again after the next click anywhere
-    // (that click closes its menu).
+    // An app opens its menu under its icon's real position, so the icon must be drawn when pressed. Drawn: press it.
+    // Parked behind Apple's overflow chevron: expand the chevron (draws it inline), press, collapse after the next click.
+    // Not on the bar (pushed by our separator, or dropped by macOS for lack of room): shrink the separator and press
+    // the element remembered from when it was visible; some apps still open that way.
     func open(_ it: Item) {
-        expand()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [self] in
+        if it.ghost { it.app.activate(); log("activate ghost \(it.app.localizedName ?? "?")"); return }
+        let now = menuBarItems()
+        let present = now.contains { $0.el == it.el }
+        let chevron = overflowButton()
+        let path = !present ? "absent" : chevron.map { !$0.expanded && it.x < $0.x } == true ? "parked" : "drawn"
+        if path == "parked", let c = chevron { AXUIElementPerformAction(c.el, kAXPressAction as CFString) }
+        if path == "absent" { expand() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + (path == "drawn" ? 0 : 0.5)) { [self] in
             let err = AXUIElementPerformAction(it.el, kAXPressAction as CFString)
+            log("press \(it.app.localizedName ?? "?") \(it.title.prefix(30)) path=\(path) x=\(Int(it.x)) chevron=\(chevron.map { "\(Int($0.x))\($0.expanded ? " expanded" : "")" } ?? "none") -> AXError \(err.rawValue)")
             var m: Any?
             m = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] _ in
                 if let mm = m { NSEvent.removeMonitor(mm) }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { if self?.arranging == false { self?.collapse() } }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    if path == "parked", let c = overflowButton(), c.expanded { AXUIElementPerformAction(c.el, kAXPressAction as CFString) }
+                    if path == "absent", self?.arranging == false { self?.collapse() }
+                }
             }
-            let line = "press \(it.app.localizedName ?? "?") -> AXError \(err.rawValue)\n"
-            if let h = FileHandle(forWritingAtPath: "/tmp/dotbar.log") { h.seekToEndOfFile(); h.write(Data(line.utf8)); h.closeFile() }
         }
+    }
+
+    // Cheap re-read without moving anything: remember every item, and list as hidden the ones left of our separator,
+    // the ones parked behind the chevron, and remembered ones whose app runs but that are no longer on the bar.
+    func scan(_ why: String) {
+        let all = menuBarItems()
+        // An empty read means the menu bar is not on screen (full screen, display asleep): keep the last good state.
+        guard !all.isEmpty else { log("scan (\(why)) skipped: menu bar not readable"); return }
+        known.removeAll { k in k.app.isTerminated || all.contains { $0.el == k.el } }
+        let gone = known
+        known += all
+        let sep = separator.button?.window?.frame.minX ?? 0
+        let chevron = overflowButton().flatMap { $0.expanded ? nil : $0.x }
+        // Apps whose icon was off the bar in an earlier run and is still not seen: listed dimmed, so nothing vanishes silently.
+        let seen = Set((all + gone).compactMap(\.app.bundleIdentifier))
+        let ghosts = (UserDefaults.standard.stringArray(forKey: "offbar") ?? []).filter { !seen.contains($0) }
+            .compactMap { NSRunningApplication.runningApplications(withBundleIdentifier: $0).first }
+            .map { Item(el: AXUIElementCreateApplication($0.processIdentifier), app: $0, x: 0, w: 0, title: "", ghost: true) }
+        UserDefaults.standard.set(Array(Set((gone + ghosts).compactMap(\.app.bundleIdentifier))).sorted(), forKey: "offbar")
+        hidden = all.filter { i in i.x + i.w / 2 < sep || chevron.map { i.x < $0 } == true } + gone + ghosts
+        log("scan (\(why)) items=\(all.count) sepMinX=\(Int(sep)) chevron=\(chevron.map { "\(Int($0))" } ?? "none") hidden=\(hidden.count) offbar=\(gone.count)\n"
+            + all.map { i in "  \(hidden.contains { $0.el == i.el } ? "HIDDEN" : "shown ") x=\(Int(i.x)) \(i.app.localizedName ?? "?") \(i.title.prefix(30))" }.joined(separator: "\n")
+            + gone.map { "\n  OFFBAR \($0.app.localizedName ?? "?") \($0.title.prefix(30))" }.joined()
+            + ghosts.map { "\n  GHOST  \($0.app.localizedName ?? "?") (off the bar, not seen since launch)" }.joined())
     }
 
     func expand() {
@@ -72,15 +117,14 @@ final class App: NSObject, NSApplicationDelegate {
         separator.length = narrow
     }
 
-    // Expand, read where every item sits, remember those left of the separator, then push them away again.
+    // Expand, read where every item sits (expanded, our hidden items are back on the bar when there is room), then
+    // push them away again.
     func refresh() {
         expand()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [self] in
-            guard !arranging, let w = separator.button?.window else { return }
-            let all = menuBarItems()
-            hidden = all.filter { $0.x + $0.w / 2 < w.frame.minX }
-            let lines = all.map { i in "\(hidden.contains { $0.el == i.el } ? "HIDDEN" : "shown ") x=\(Int(i.x)) \(i.app.localizedName ?? "?") \(i.title.prefix(30))" }
-            try? "trusted=\(AXIsProcessTrusted()) sepMinX=\(Int(w.frame.minX)) items=\(all.count) hidden=\(hidden.count)\n\(lines.joined(separator: "\n"))\n".write(toFile: "/tmp/dotbar.log", atomically: true, encoding: .utf8)
+            guard !arranging else { return }
+            log("refresh trusted=\(AXIsProcessTrusted())")
+            scan("refresh")
             collapse()
         }
     }
@@ -111,6 +155,18 @@ final class App: NSObject, NSApplicationDelegate {
             }
         }
     }
+}
+
+// Append-only debug log, reset when it passes 1 MB.
+func log(_ s: String) {
+    let path = "/tmp/dotbar.log"
+    let size = (try? FileManager.default.attributesOfItem(atPath: path)[.size] as? Int) ?? 0
+    if size > 1_000_000 { try? FileManager.default.removeItem(atPath: path) }
+    if !FileManager.default.fileExists(atPath: path) { FileManager.default.createFile(atPath: path, contents: nil) }
+    guard let h = FileHandle(forWritingAtPath: path) else { return }
+    h.seekToEndOfFile()
+    h.write(Data("\(Date().formatted(date: .omitted, time: .standard)) \(s)\n".utf8))
+    h.closeFile()
 }
 
 let app = NSApplication.shared

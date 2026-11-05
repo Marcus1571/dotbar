@@ -22,6 +22,15 @@ Measured on a MacBook Air 15" M3 (notch), Swift 6.4.2 with Command Line Tools on
 - Parked items keep an AX frame (their parked x), but **`AXPress` on a parked item opens nothing** (tested with Kerberos: no menu window appeared). An item must be drawn to open.
 - Whether a pushed item is hidden depends on the frontmost app: with long app menus the item is parked behind the arrow; with short ones it is drawn next to the app menus, and the arrow disappears. This is why pushing never hides reliably on macOS 27.
 
+## Laptop screen alone (notch), measured 2026-11-05
+Built-in display 1280x828 points; the notch spans x≈570–710 (`NSScreen.auxiliaryTopLeftArea`/`TopRightArea`). The operator's screenshots and AX reads agree:
+- macOS fills the status area right of the notch (~550 pt) from the right. What does not fit is **parked** behind the « chevron (stacked at x≈739–748). Pressing « draws the parked items inline left of the notch, over the app menus, and they work natively.
+- What does not fit even there is **dropped**: no MenuBarAgent group, and the owning app's `AXExtrasMenuBar` returns `kAXErrorNoValue` (-25212). Dropped here: dotbar's own separator and the five items left of it. With short app menus (no chevron) more fits: Outlook came back at x≈128.
+- **A dropped item leaves no AX trace**: neither the app nor MenuBarAgent exposes it, and expanding « does not bring it back. The only hint is MenuBarAgent's analytics key `MenuBarAnalytics.lastReportedTrailingItemCount` (29 vs 24 groups drawn), which names nothing.
+- **But an element obtained while the item was visible keeps working** while its app runs: GlobalProtect's element, read on the external display, opened its popover after the switch to the laptop (popover placed right of the notch). Untested for plain-menu items such as Kerberos.
+- While the menu bar is off screen (full-screen app, display asleep), MenuBarAgent's window reads as 0x0 with no children.
+- Thaw's hide/reveal call to MenuBarAgent lives in its closed PlatformRuntimeKit, whose license forbids taking it apart to rebuild elsewhere. Not used, not inspected.
+
 ## Hiding by pushing (the Hidden Bar / Ice trick) is fragile on macOS 27
 - Idea: a status item ("separator") made very wide pushes the items on its left off-screen.
 - On macOS 27 an item wider than the room it has is **ignored/dropped**: a 10000 px separator does nothing. Probed widths: up to ~800 px worked, 1200+ px was dropped (all icons came back).

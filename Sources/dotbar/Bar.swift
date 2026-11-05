@@ -7,6 +7,7 @@ struct Item {
     let app: NSRunningApplication
     let x: CGFloat, w: CGFloat
     let title: String
+    var ghost = false   // remembered from an earlier run but not seen since: no element to press yet
 }
 
 private func attr(_ el: AXUIElement, _ a: String) -> CFTypeRef? {
@@ -14,12 +15,28 @@ private func attr(_ el: AXUIElement, _ a: String) -> CFTypeRef? {
     return AXUIElementCopyAttributeValue(el, a as CFString, &v) == .success ? v : nil
 }
 
+private var agentPID: pid_t? {
+    NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.MenuBarAgent").first?.processIdentifier
+}
+
+// Apple's own overflow chevron, present only while some items do not fit. Collapsed: "menu-bar-overflow-indicator"
+// (items left of it are parked, not drawn); expanded: "menu-bar-overflow-indicator-expanded" (parked items drawn inline).
+func overflowButton() -> (el: AXUIElement, x: CGFloat, expanded: Bool)? {
+    guard let pid = agentPID, let bar = attr(AXUIElementCreateApplication(pid), "AXExtrasMenuBar") else { return nil }
+    for k in (attr(bar as! AXUIElement, kAXChildrenAttribute) as? [AXUIElement]) ?? [] {
+        guard let id = attr(k, "AXIdentifier") as? String, id.hasPrefix("menu-bar-overflow-indicator") else { continue }
+        var r = CGRect.zero
+        if let f = attr(k, "AXFrame") { AXValueGetValue(f as! AXValue, .cgRect, &r) }
+        return (k, r.minX, id.hasSuffix("-expanded"))
+    }
+    return nil
+}
+
 // macOS 27 draws every status item in one MenuBarAgent window. Its AX children are one group per item, the item's own
 // element inside (owned by the item's app), and the overflow chevron as a bare button. Unlike each app's AXExtrasMenuBar,
 // this also lists items parked behind the overflow chevron.
 func menuBarItems() -> [Item] {
-    guard let agent = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.MenuBarAgent").first,
-          let win = (attr(AXUIElementCreateApplication(agent.processIdentifier), kAXWindowsAttribute) as? [AXUIElement])?.first
+    guard let agent = agentPID, let win = (attr(AXUIElementCreateApplication(agent), kAXWindowsAttribute) as? [AXUIElement])?.first
     else { return [] }
     var out: [Item] = []
     for g in (attr(win, kAXChildrenAttribute) as? [AXUIElement]) ?? [] {
@@ -27,7 +44,7 @@ func menuBarItems() -> [Item] {
         while let k = (attr(el, kAXChildrenAttribute) as? [AXUIElement])?.first { el = k }
         var pid: pid_t = 0
         AXUIElementGetPid(el, &pid)
-        guard pid != getpid(), pid != agent.processIdentifier, let app = NSRunningApplication(processIdentifier: pid) else { continue }
+        guard pid != getpid(), pid != agent, let app = NSRunningApplication(processIdentifier: pid) else { continue }
         var r = CGRect.zero
         if let f = attr(g, "AXFrame") { AXValueGetValue(f as! AXValue, .cgRect, &r) }
         let t = (attr(el, kAXTitleAttribute) as? String).flatMap { $0.isEmpty ? nil : $0 }
@@ -78,6 +95,10 @@ final class BarPanel {
             }
             b.font = .systemFont(ofSize: 11)
             b.toolTip = "\(it.app.localizedName ?? "") \(it.title)".trimmingCharacters(in: .whitespaces)
+            if it.ghost {
+                b.alphaValue = 0.4
+                b.toolTip = "\(it.app.localizedName ?? "") is off the screen and dotbar has not seen its icon since it started. Make room once (plug in a display, or switch to an app with short menus) and it becomes clickable."
+            }
             b.tag = i
             b.target = self
             b.action = #selector(press(_:))

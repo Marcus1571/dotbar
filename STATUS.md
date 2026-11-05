@@ -9,10 +9,13 @@ Not good enough (the operator's own words, 2026-11-05): the bar's icons are "unu
 No tool can open another app's menu or popover under dotbar's bar: the app anchors it to its own icon's position in the real menu bar, and the icon must be drawn there when pressed. Thaw 3 and Bartender live with the same limit. The design choice is therefore *where* the clicked icon is drawn for that moment. Evidence: [findings.md](findings.md#why-the-other-menu-bar-managers-broke-on-macos-27-read-2026-11-05).
 
 ## In flight
-- 2026-11-05: inventory switched to MenuBarAgent's AX window (complete, includes parked items).
-- **Next and blocking: the laptop-alone test.** The operator opens the lid, unplugs the external display and tells the agent; the agent then measures from the terminal whether MenuBarAgent shows its overflow arrow, where hidden items are parked, and where the inline expansion draws them next to the notch.
+- 2026-11-05: laptop-alone test done (operator's screenshots + AX reads, see [findings.md](findings.md#laptop-screen-alone-notch-measured-2026-11-05)). Result: macOS parks what does not fit behind its « chevron and **drops** what does not fit even there, with no AX trace. The operator's call: dotbar is worth it exactly for those, so the bar must list escaped icons automatically.
+- Built the same day: memory of every seen item, three press paths (drawn / parked / absent), persisted off-bar list with dimmed ghosts.
+- **To verify by the operator:** (1) plug in the external display once, unplug, open the bar: the dropped icons (Kerberos, GlobalProtect, Support, input menu, Outlook on this Mac) should be listed and open on click; plain-menu items like Kerberos are the open question. (2) Click an icon parked behind «: the chevron should expand and its menu open left of the notch.
 
-## Candidate designs (decided after the laptop test)
-1. **Seat beside the dot:** on click, move only that icon next to the dot (⌘-drag while it is drawn, or a write to the menu-bar order file after a one-time file pick), press it so its menu opens right above the bar, move it back after the menu closes. Closest to "in place". Risk: ⌘-drag moves the pointer, which is what made Bartender 6 feel broken.
-2. **Use Apple's overflow:** the dot presses macOS's own overflow arrow, so the hidden icons are drawn inline in the real menu bar (over the app menus) and work natively. Simplest and most robust, but it is not a bar below.
-3. Later regardless of design: user-chosen hidden list (bundle id + title in `UserDefaults`), auto-refresh on `NSWorkspace` launch/terminate notifications, launch at login (`SMAppService`), profiles, icon limit.
+## Known limits
+- An icon macOS drops before dotbar ever saw it in this run cannot be pressed; it shows dimmed (if remembered) until there is room once.
+- On the laptop dotbar's own separator is dropped too (it sits leftmost), so the hand-picked hidden list only takes effect while there is room.
+
+## Later
+User-chosen hidden list independent of the separator, launch at login (`SMAppService`), profiles, icon limit. "Seat beside the dot" (move the clicked icon next to the dot) is shelved: a dropped icon cannot be dragged.
