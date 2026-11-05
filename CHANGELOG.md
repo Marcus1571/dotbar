@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.0 (2026-11-05)
 
 - Dot + `┃` separator; icons left of the separator are hidden by pushing them away with a wide separator. Because macOS 27 drops items wider than the room it has, the separator grows in steps until macOS refuses (the room depends on the frontmost app).
 - Click the dot: a floating bar below the menu bar lists the hidden items (from Accessibility). Click one: the hidden icons return, the real item is pressed, they hide again after the next click.
