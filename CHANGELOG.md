@@ -11,4 +11,5 @@
 - Hidden-item inventory now comes from MenuBarAgent's single Accessibility window (complete on macOS 27, includes items parked behind the overflow arrow).
 - Icons that macOS drops for lack of room (the laptop screen) stay in the bar: dotbar remembers every icon it has seen while its app runs, and remembers across restarts which apps are off the bar (shown dimmed until seen again).
 - Clicking an icon in the bar picks the way that opens it: press directly when drawn, expand Apple's overflow chevron when parked behind it, or shrink the separator and press the remembered element.
+- Right-click the dot › Launch at login: registers the installed app as a login item (`SMAppService`, listed in System Settings › General › Login Items).
 - Rescans on display changes, app launch/quit and every dot click; append-only timestamped log.

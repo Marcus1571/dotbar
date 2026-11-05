@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import ServiceManagement
 
 // Menu-bar hider with a second bar: icons left of the separator are pushed away; click the dot to see them
 // in a small bar below the menu bar and click one to open it. Needs only Accessibility (no Screen Recording).
@@ -43,6 +44,8 @@ final class App: NSObject, NSApplicationDelegate {
             m.addItem(withTitle: arranging ? "Done arranging" : "Arrange icons…", action: #selector(toggleArranging), keyEquivalent: "")
             m.addItem(withTitle: "Refresh hidden icons", action: #selector(refreshAction), keyEquivalent: "")
             m.addItem(.separator())
+            m.addItem(withTitle: "Launch at login", action: #selector(toggleLogin), keyEquivalent: "").state =
+                SMAppService.mainApp.status == .enabled ? .on : .off
             m.addItem(withTitle: "Quit dotbar", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
             dot.menu = m; dot.button?.performClick(nil); dot.menu = nil
         } else if bar.isShown {
@@ -54,6 +57,13 @@ final class App: NSObject, NSApplicationDelegate {
     }
 
     @objc func refreshAction() { refresh() }
+
+    // Registers the installed app as a login item (System Settings > General > Login Items).
+    @objc func toggleLogin() {
+        let s = SMAppService.mainApp
+        do { try s.status == .enabled ? s.unregister() : s.register(); log("login item: \(s.status.rawValue)") }
+        catch { log("login item failed: \(error)") }
+    }
 
     @objc func toggleArranging() {
         arranging.toggle()

@@ -18,4 +18,4 @@ No tool can open another app's menu or popover under dotbar's bar: the app ancho
 - On the laptop dotbar's own separator is dropped too (it sits leftmost), so the hand-picked hidden list only takes effect while there is room.
 
 ## Later
-User-chosen hidden list independent of the separator, launch at login (`SMAppService`), profiles, icon limit. "Seat beside the dot" (move the clicked icon next to the dot) is shelved: a dropped icon cannot be dragged.
+User-chosen hidden list independent of the separator, profiles, icon limit. "Seat beside the dot" (move the clicked icon next to the dot) is shelved: a dropped icon cannot be dragged.

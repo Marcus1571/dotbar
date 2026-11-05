@@ -7,7 +7,7 @@ Built because Bartender 6 stopped working on macOS 27, which draws every menu-ba
 ## How it works
 - dotbar puts a dot and a separator in the menu bar; [icons left of the separator are the hidden ones](KB.md#hiding-pushing).
 - Click the dot and a small [bar appears under the menu bar](KB.md#the-bar-below-the-menu-bar) with those icons (app icons, live text where the app exposes it). Click one and [its real menu opens](KB.md#opening-an-item).
-- Right-click the dot to arrange icons, refresh the list or quit.
+- Right-click the dot to arrange icons, refresh the list, launch at login or quit.
 
 ## Permissions
 **Accessibility** only, which macOS 27 calls *Device Control and Data Access*. dotbar never asks for Screen Recording ([details](KB.md#permissions)).

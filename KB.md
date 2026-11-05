@@ -31,7 +31,7 @@ The menu always opens under the item's real position in the menu bar (macOS give
 - **absent** (pushed by the separator, or dropped): shrink the separator, wait 0.5 s, press the remembered element, push again after the next click or key.
 
 ## dotbar's menu
-Arrange icons… / Done arranging (shows `┃` so you can ⌘-drag icons across it), Refresh hidden icons (re-reads the inventory), Quit dotbar.
+Arrange icons… / Done arranging (shows `┃` so you can ⌘-drag icons across it), Refresh hidden icons (re-reads the inventory), Launch at login (checkmark = registered with `SMAppService.mainApp`, i.e. the copy in `~/Applications`; result in the log), Quit dotbar.
 
 ## Permissions
 Accessibility only (macOS 27: Privacy & Security → *Device Control and Data Access*). Prompted on first launch. No Screen Recording, no network.
