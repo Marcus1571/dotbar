@@ -45,6 +45,7 @@ final class App: NSObject, NSApplicationDelegate {
             m.addItem(withTitle: arranging ? "Done arranging" : "Arrange icons…", action: #selector(toggleArranging), keyEquivalent: "")
             m.addItem(withTitle: "Refresh hidden icons", action: #selector(refreshAction), keyEquivalent: "")
             m.addItem(.separator())
+            m.addItem(withTitle: "Menu bar layout access…", action: #selector(grantLayout), keyEquivalent: "")
             m.addItem(withTitle: "Launch at login", action: #selector(toggleLogin), keyEquivalent: "").state =
                 SMAppService.mainApp.status == .enabled ? .on : .off
             m.addItem(withTitle: "Quit dotbar", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -60,6 +61,32 @@ final class App: NSObject, NSApplicationDelegate {
     }
 
     @objc func refreshAction() { refresh() }
+
+    // macOS 27 keeps the menu-bar order in MenuBarAgent's group container, which refuses every read until the user
+    // picks the file (or folder) in an open panel; the panel runs in a system process and hands the access back.
+    // ponytail: probe stage, copies what was picked to /tmp/dotbar-layout to learn the format; profiles come next.
+    @objc func grantLayout() {
+        let p = NSOpenPanel()
+        p.canChooseFiles = true; p.canChooseDirectories = true; p.allowsMultipleSelection = true
+        p.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Group Containers/com.apple.MenuBar")
+        p.message = "Select the menu bar layout file (or the whole folder) so dotbar can read and rearrange it."
+        p.prompt = "Grant Access"
+        NSApp.activate(ignoringOtherApps: true)
+        guard p.runModal() == .OK else { log("layout access: panel cancelled"); return }
+        let out = URL(fileURLWithPath: "/tmp/dotbar-layout")
+        try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
+        for u in p.urls {
+            if let b = try? u.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+                UserDefaults.standard.set(b, forKey: "layoutBookmark")
+            }
+            let files = FileManager.default.enumerator(at: u, includingPropertiesForKeys: nil)?.compactMap { $0 as? URL } ?? [u]
+            for f in files + [u] {
+                let d = FileManager.default.contents(atPath: f.path)
+                log("layout access: \(f.path) readable=\(d != nil) bytes=\(d?.count ?? -1) writable=\(FileManager.default.isWritableFile(atPath: f.path))")
+                if let d { try? d.write(to: out.appendingPathComponent(f.path.replacingOccurrences(of: "/", with: "_"))) }
+            }
+        }
+    }
 
     // Registers the installed app as a login item (System Settings > General > Login Items).
     @objc func toggleLogin() {
