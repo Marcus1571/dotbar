@@ -27,6 +27,7 @@ Measured on a MacBook Air 15" M3 (notch), Swift 6.4.2 with Command Line Tools on
 - Even re-fitted, with Herdr in front macOS clamped the separator's left edge at x=137 and kept the one icon (Outlook, 112-135) in the gap between the app menus and the separator: growing further was refused (frame `137..1074`, the right edge moved instead), not answered by dropping that icon.
 - A 1-point item of dotbar's own placed next to the separator did not help (both survived). A **40-point** invisible item there did: the separator then reached x=113 and nothing hidden stayed drawn. The spacer is 1 point while expanded.
 - The gap is not always one icon: once, with Herdr in front, the separator stopped at x=235 and two iStat Menus icons plus the 40-point spacer stayed in it. Hence the measured widening (`squeeze`).
+- A pushed separator's right edge is not fixed: when the order puts text items (iStat Menus) between the separator and the dot, their width changes move it. Judging push steps by the right edge made every step look refused (2026-11-06, Excel in front: nothing was pushed). The left edge is the reliable signal: accepted steps move it left by the step, refused ones leave it pinned at the app menus while the frame overflows right.
 - Writing `TrailingItemPreferredPositions` through `CFPreferencesSetValue` with the file's absolute-path domain reached the file (cfprefsd), and MenuBarAgent placed the new item where written.
 
 ## Laptop screen alone (notch), measured 2026-11-05

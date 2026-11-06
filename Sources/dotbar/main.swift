@@ -23,7 +23,6 @@ final class App: NSObject, NSApplicationDelegate {
     var arranging = false
     var generation = 0   // bumped on every layout change so a stale grow() stops
     var pushed = false   // collapsed: the separator is pushing; false while expanded (arranging, or an item is open)
-    var sepRight: CGFloat = 0   // the separator's right edge, fixed by the dot
 
     func applicationDidFinishLaunching(_ n: Notification) {
         _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary)
@@ -196,8 +195,7 @@ final class App: NSObject, NSApplicationDelegate {
         spacer.length = 40
         dot.button?.title = "•"
         separator.button?.title = ""
-        sepRight = separator.button?.window?.frame.maxX ?? 0
-        grow(generation, length: narrow, steps: [64, 16, 4], right: sepRight)
+        grow(generation, length: narrow, steps: [64, 16, 4], minX: separator.button?.window?.frame.minX ?? 0)
     }
 
     // With short app menus macOS stops the separator at the hidden icons that still fit left of it and keeps them drawn
@@ -205,36 +203,44 @@ final class App: NSObject, NSApplicationDelegate {
     func squeeze(_ gen: Int, tries: Int) {
         guard gen == generation, tries > 0, let sep = separator.button?.window?.frame.minX else { return }
         let all = menuBarItems(), left = all.filter { $0.x < sep }
-        guard let first = left.first else { log("squeeze: nothing drawn left of the separator at x=\(Int(sep)) (\(all.count) items read)"); return }
-        spacer.length += sep - first.x
+        guard let first = left.first, spacer.length < 400 else {
+            log("squeeze: \(left.count) hidden icon(s) drawn left of the separator at x=\(Int(sep)) (\(all.count) items read), spacer \(Int(spacer.length))\(left.isEmpty ? "" : ", at its cap")")
+            return
+        }
+        spacer.length = min(400, spacer.length + sep - first.x)   // ponytail: cap, a runaway width wrecks the bar
         log("squeeze: \(left.count) hidden icon(s) still drawn from x=\(Int(first.x)) to the separator at x=\(Int(sep)), spacer -> \(Int(spacer.length))")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [self] in squeeze(gen, tries: tries - 1) }
     }
 
-    // After an app switch: shrink in 64-point steps while macOS refuses the width, then grow as usual. Starting from
-    // the current width (not from narrow) keeps hidden icons from flashing back on every switch.
+    // After an app switch: shrink in 64-point steps while the left edge stays pinned (macOS clamps a too-wide item at the
+    // app menus and lets it overflow to the right), then grow as usual. Starting from the current width (not from
+    // narrow) keeps hidden icons from flashing back on every switch.
     func refit() {
         guard pushed else { return }
         generation += 1
         spacer.length = 40
-        shrink(generation)
+        shrink(generation, minX: separator.button?.window?.frame.minX ?? 0)
     }
 
-    func shrink(_ gen: Int) {
+    func shrink(_ gen: Int, minX: CGFloat) {
         guard gen == generation, let w = separator.button?.window else { return }
         let len = separator.length
-        if len <= narrow || abs(w.frame.minX - (sepRight - len - 3)) < 1 && abs(w.frame.maxX - sepRight) < 1 {
-            grow(gen, length: len, steps: [64, 16, 4], right: sepRight)
-            return
-        }
+        guard len > narrow else { grow(gen, length: len, steps: [64, 16, 4], minX: w.frame.minX); return }
         separator.length = max(narrow, len - 64)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [self] in shrink(gen) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [self] in
+            guard gen == generation else { return }
+            let f = w.frame
+            log("shrink \(Int(separator.length)) frame=\(Int(f.minX))..\(Int(f.maxX)) \(f.minX > minX + 1 ? "fits" : "still clamped")")
+            if f.minX > minX + 1 { grow(gen, length: separator.length, steps: [64, 16, 4], minX: f.minX) } else { shrink(gen, minX: f.minX) }
+        }
     }
 
     // macOS 27 ignores a status item wider than the room it has (it clamps the left edge at the app menus,
     // and the room depends on the frontmost app), so widen the separator step by step until a step is refused,
     // then back off to the last accepted width and refine with smaller steps.
-    func grow(_ gen: Int, length: CGFloat, steps: [CGFloat], right: CGFloat) {
+    // A step is accepted when the left edge moved left by the step. The right edge is no reference: items between the
+    // separator and the dot (iStat Menus text) change width all the time and move it.
+    func grow(_ gen: Int, length: CGFloat, steps: [CGFloat], minX: CGFloat) {
         guard gen == generation, let w = separator.button?.window else { return }
         guard let step = steps.first else { squeeze(gen, tries: 3); return }
         let next = length + step
@@ -242,13 +248,13 @@ final class App: NSObject, NSApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [self] in
             guard gen == generation else { return }
             let f = w.frame
-            let accepted = abs(f.maxX - right) < 1 && abs(f.minX - (right - next - 3)) < 1
-            log("grow \(Int(next)) frame=\(Int(f.minX))..\(Int(f.maxX)) right=\(Int(right)) \(accepted ? "ok" : "refused")")
+            let accepted = f.minX <= minX - step + 1
+            log("grow \(Int(next)) frame=\(Int(f.minX))..\(Int(f.maxX)) moved=\(Int(minX - f.minX)) \(accepted ? "ok" : "refused")")
             if accepted {
-                grow(gen, length: next, steps: steps, right: right)
+                grow(gen, length: next, steps: steps, minX: f.minX)
             } else {
                 separator.length = length
-                grow(gen, length: length, steps: Array(steps.dropFirst()), right: right)
+                grow(gen, length: length, steps: Array(steps.dropFirst()), minX: minX)
             }
         }
     }

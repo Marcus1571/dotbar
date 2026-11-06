@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix: hidden icons showed again (e.g. with Excel in front). Each push step was judged by the separator's right edge, which moves whenever an icon between it and the dot changes width (iStat Menus text), so every step looked refused and nothing was pushed. Steps are now judged by the left edge; an app switch shrinks only while the left edge stays pinned; the invisible spacer is capped at 400 points.
+
 ## 0.1.2 (2026-11-05)
 
 - Fix: with short app menus (e.g. Herdr) a few hidden icons could stay drawn at the left. After each push dotbar now checks for hidden icons still drawn left of the separator and widens its invisible spacer over them.
