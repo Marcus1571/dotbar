@@ -1,7 +1,7 @@
 # Status (2026-11-05)
 
 ## Where things stand
-Version 0.1.2, released 2026-11-05. Works: dot and separator in the menu bar, the bar below the menu bar listing hidden items, pressing one opens its real menu, Accessibility only, ~0% CPU idle.
+Version 0.1.3, released 2026-11-06. Works: dot and separator in the menu bar, the bar below the menu bar listing hidden items, pressing one opens its real menu, Accessibility only, ~0% CPU idle.
 
 Not good enough (the operator's own words, 2026-11-05): the bar's icons are "unusable". Clicking one brings all hidden icons back into the main bar and opens the menu up there, which does nothing for the real problem: on the laptop screen alone there is no room, so the icon would not even show. Hiding by pushing is also unreliable (it depends on the frontmost app's menus, see [findings.md](findings.md)).
 
