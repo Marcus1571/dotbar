@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 (2026-11-11)
 
 - Published: dotbar is now distributed like the sibling apps. `scripts/make-dmg.sh` builds `build/dist/dotbar-<version>.dmg` — Developer ID signed (`Marco Dal Moro (NGPL7S3YX3)`), notarized through the shared `diskledplus-notary` keychain profile, stapled and validated; the DMG is attached to each GitHub Release. A Developer ID identity in `build-app.sh` also gets the hardened runtime and a timestamp, which notarization requires; the local `dotbar local signing` certificate remains the default for dev installs (it keeps the Accessibility grant across rebuilds).
 - New: *About dotbar* at the top of the dot's right-click menu — the standard About panel (accessory apps have no menu bar) showing the new app icon, version and credits.
