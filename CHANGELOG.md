@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 (2026-11-11)
 
 - New: the About panel is now the same custom mini page as UsageBar's and NeverSleep's — app icon at 96 pt, name, "Version x (build y)", divider, © 2026 **Marcus1571** (the operator's public identity, used instead of the real name everywhere user-facing: About, Info.plist copyright, LICENSE), the MIT line, the `github.com/Marcus1571/dotbar` link and a one-line tagline. `Resources/Credits.rtf` is gone (it only fed the old standard panel).
 

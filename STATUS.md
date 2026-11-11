@@ -1,7 +1,7 @@
 # Status (2026-11-11)
 
 ## Where things stand
-Version 0.3.0, released 2026-11-11. Works: dot and separator in the menu bar, the bar below the menu bar listing hidden items, pressing one opens its real menu, Accessibility only, ~0% CPU idle.
+Version 0.3.1, released 2026-11-11. Works: dot and separator in the menu bar, the bar below the menu bar listing hidden items, pressing one opens its real menu, Accessibility only, ~0% CPU idle.
 
 New in this session (unreleased): **seated opening** — clicking (left *or* right) a below-bar icon that is not drawn seats it just right of the separator for the moment of the press (a layout-file write; MenuBarAgent reorders live), so its menu opens next to the separator where it is visible on any display, and the item returns to its hidden order when the interaction ends. This is the fix for dropped icons ("not represented, ever, no matter where you click"): even an item with no Accessibility trace gets pressed, via its layout key. Right-click asks the item for its context menu (`AXShowMenu`). Design and evidence: [findings.md](findings.md#seating-a-clicked-item-next-to-the-separator-2026-11-11), behaviour: [KB.md](KB.md#opening-an-item). Verified the same day: BetterDisplay (and Apple's agent items) ignore the accessibility press on a freshly seated item, so seated items are now pressed with a real synthetic click at their drawn position, left or right button per the click.
 
