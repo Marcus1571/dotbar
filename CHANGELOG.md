@@ -1,8 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- New: the About panel is now the same custom mini page as UsageBar's and NeverSleep's — app icon at 96 pt, name, "Version x (build y)", divider, © 2026 **Marcus1571** (the operator's public identity, used instead of the real name everywhere user-facing: About, Info.plist copyright, LICENSE), the MIT line, the `github.com/Marcus1571/dotbar` link and a one-line tagline. `Resources/Credits.rtf` is gone (it only fed the old standard panel).
+
 ## 0.3.0 (2026-11-11)
 
-- Published: dotbar is now distributed like the sibling apps. `scripts/make-dmg.sh` builds `build/dist/dotbar-<version>.dmg` — Developer ID signed (`Marco Dal Moro (NGPL7S3YX3)`), notarized through the shared `diskledplus-notary` keychain profile, stapled and validated; the DMG is attached to each GitHub Release. A Developer ID identity in `build-app.sh` also gets the hardened runtime and a timestamp, which notarization requires; the local `dotbar local signing` certificate remains the default for dev installs (it keeps the Accessibility grant across rebuilds).
+- Published: dotbar is now distributed like the sibling apps. `scripts/make-dmg.sh` builds `build/dist/dotbar-<version>.dmg` — Developer ID signed (team `NGPL7S3YX3`), notarized through the shared `diskledplus-notary` keychain profile, stapled and validated; the DMG is attached to each GitHub Release. A Developer ID identity in `build-app.sh` also gets the hardened runtime and a timestamp, which notarization requires; the local `dotbar local signing` certificate remains the default for dev installs (it keeps the Accessibility grant across rebuilds).
 - New: *About dotbar* at the top of the dot's right-click menu — the standard About panel (accessory apps have no menu bar) showing the new app icon, version and credits.
 - New: an app icon, generated at build time by `scripts/make-icon.swift` into an iconset and compiled to `AppIcon.icns` (dark plate, a white dot above a light bar — the menu-bar dot and the second bar below it; no binary assets in the repo). Info.plist gains `CFBundleIconFile`, `CFBundleDisplayName` and a copyright line; `Resources/Credits.rtf` carries the project link.
 - New: `LICENSE` (MIT).

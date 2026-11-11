@@ -62,11 +62,57 @@ final class App: NSObject, NSApplicationDelegate {
 
     @objc func openSettings() { settings.show() }
 
-    // Standard About panel: name, version, the app icon and Credits.rtf from the bundle (an accessory app has no
-    // menu bar, so this lives in the dot's right-click menu).
+    // The About window, opened from the dot's menu — the same mini page as UsageBar's and NeverSleep's: the app
+    // icon at 96 pt, name, "Version x (build y)", © line with the operator's public identity (Marcus1571, not the
+    // real name), the license, the GitHub repo and a one-line tagline. An accessory app has no menu bar, so this
+    // lives in the dot's right-click menu.
+    private var aboutWindow: NSWindow?
+
     @objc func about() {
+        if aboutWindow == nil {
+            let info = Bundle.main.infoDictionary ?? [:]
+            let v = info["CFBundleShortVersionString"] as? String ?? "?"
+            let b = info["CFBundleVersion"] as? String ?? "?"
+            func label(_ s: String, _ size: CGFloat, _ weight: NSFont.Weight = .regular, _ color: NSColor = .labelColor) -> NSTextField {
+                let l = NSTextField(labelWithString: s)
+                l.font = .systemFont(ofSize: size, weight: weight)
+                l.textColor = color
+                l.alignment = .center
+                return l
+            }
+            let link = NSTextField(labelWithAttributedString: NSAttributedString(
+                string: "github.com/Marcus1571/dotbar",
+                attributes: [.link: URL(string: "https://github.com/Marcus1571/dotbar")!,
+                             .font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor.linkColor]))
+            link.isSelectable = true
+            link.alignment = .center
+            let tagline = label("Hide the menu-bar icons you do not need every day and reach them in a second bar below the menu bar.", 11, .regular, .secondaryLabelColor)
+            tagline.lineBreakMode = .byWordWrapping
+            tagline.preferredMaxLayoutWidth = 252
+            let divider = NSBox()
+            divider.boxType = .separator
+            divider.widthAnchor.constraint(equalToConstant: 260).isActive = true
+            let icon = NSImageView(image: NSApp.applicationIconImage)
+            icon.widthAnchor.constraint(equalToConstant: 96).isActive = true
+            icon.heightAnchor.constraint(equalToConstant: 96).isActive = true
+            let stack = NSStackView(views: [icon, label("dotbar", 22, .bold),
+                                            label("Version \(v) (build \(b))", 11, .regular, .secondaryLabelColor),
+                                            divider, label("© 2026 Marcus1571", 13),
+                                            label("MIT", 11, .regular, .secondaryLabelColor), link, tagline])
+            stack.orientation = .vertical
+            stack.spacing = 10
+            stack.alignment = .centerX
+            stack.edgeInsets = NSEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
+            let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: stack.fittingSize.height),
+                             styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            w.title = "About dotbar"
+            w.isReleasedWhenClosed = false
+            w.contentView = stack
+            aboutWindow = w
+        }
         NSApp.activate(ignoringOtherApps: true)
-        NSApp.orderFrontStandardAboutPanel(nil)
+        aboutWindow?.center()
+        aboutWindow?.makeKeyAndOrderFront(nil)
     }
 
     // The app going away must leave the menu bar as it found it: undo a pending seat (file only — the separator's
