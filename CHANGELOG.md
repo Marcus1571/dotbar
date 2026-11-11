@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Feature: icons clicked in the below bar now open their menu where it can be seen. When the clicked item is not drawn (pushed away by the separator, or dropped by macOS with no Accessibility trace at all), dotbar *seats* it for the moment: it writes the item's preferred position to just right of the separator in the layout file, shrinks the separator by about one icon's width so the chain still fits, presses the item there once it appears, and restores its saved position and the push when the interaction ends (the next mouse click, or Escape/Return). This also works for dimmed ghosts of single-item apps, which had no element to press. Falls back to the old shrink-and-press path when layout access is missing, the item's layout key is unknown, or the seat does not appear within 1 s.
+- Feature: the below-bar icons answer right-clicks (NSButton ignored them). A right-click asks the item for its secondary (context) menu with `AXShowMenu`, falling back to the normal press when an item has no such action; a left-click still opens the primary menu. Navigating an open menu with the keyboard no longer ends the interaction — only clicks, Escape and Return do — and clicks on dotbar's own bar and dot now count too (a local event monitor was added to the global one).
+
 ## 0.1.3 (2026-11-06)
 
 - Fix: hidden icons showed again (e.g. with Excel in front). Each push step was judged by the separator's right edge, which moves whenever an icon between it and the dot changes width (iStat Menus text), so every step looked refused and nothing was pushed. Steps are now judged by the left edge; an app switch shrinks only while the left edge stays pinned; the invisible spacer is capped at 400 points.

@@ -120,6 +120,23 @@ final class Layout {
         apply(d)
     }
 
+    // The layout key of one of an app's menu-bar items ("status:<bundle id or app name>::<autosave name>"), found by
+    // owner. One match is unambiguous; with several (iStat Menus runs six), `order` — the item's position among its
+    // app's items on the scan where they all showed, left to right — picks the key, because the file's value order is
+    // the menu-bar order. requireSingleKey: used for a ghost, whose order is unknown.
+    func key(for app: NSRunningApplication, order: Int, in p: [String: Double], requireSingleKey: Bool) -> String? {
+        let bundle = app.bundleIdentifier ?? ""
+        let cands = p.keys.filter { k in
+            guard k.hasPrefix("status:") else { return false }
+            let owner = String(k.dropFirst(7)).components(separatedBy: "::").first ?? ""
+            return (owner == bundle || owner == app.localizedName) && k != Self.separatorKey && k != Self.spacerKey
+        }
+        guard !cands.isEmpty, !requireSingleKey || cands.count == 1 else { return nil }
+        if cands.count == 1 { return cands.first }
+        let sorted = cands.sorted { p[$0]! < p[$1]! }
+        return order < sorted.count ? sorted[order] : nil
+    }
+
     // Makes the profile current and writes its order (merged over the file so new items keep their place).
     func apply(_ name: String) {
         current = name

@@ -39,6 +39,17 @@ Built-in display 1280x828 points; the notch spans x≈570–710 (`NSScreen.auxil
 - While the menu bar is off screen (full-screen app, display asleep), MenuBarAgent's window reads as 0x0 with no children.
 - Thaw's hide/reveal call to MenuBarAgent lives in its closed PlatformRuntimeKit, whose license forbids taking it apart to rebuild elsewhere. Not used, not inspected.
 
+## Seating a clicked item next to the separator (2026-11-11)
+
+The shelved "seat beside the dot" idea (STATUS 2026-11-05) became possible once dotbar had layout-write access (2026-11-05): a *dropped* item cannot be dragged, but its preferred position can be written. Decision, with the reasoning:
+
+- **The seat goes just right of the separator (`separator value − 0.5`), not left of it.** While pushed, the separator's window spans the whole hidden zone (measured: `frame=114..1103` at width 986) with its left edge clamped at the app menus, and the icons left of it are **dropped, not parked** on this display (`scan` logs `chevron=none` + `OFFBAR`) — a position left of the separator cannot be drawn anywhere. Right of the separator is the zone that always draws (the dot's zone), on every display.
+- **The separator's length is temporarily reduced by about the seated item's width** (`max(24, w + 8)`): seating one more icon into a chain whose left edge is already clamped would make macOS drop or clamp the separator (flood-back). With the length reduced, the whole chain fits deterministically. On restore, the push is re-tightened from the current width (refit-style), not from narrow, so nothing flashes back.
+- **Right-click on a below-bar icon maps to `AXShowMenu`** (the item's secondary menu, same call Thaw uses), falling back to `AXPress`; left-click stays `AXPress`. NSButton ignores right clicks, so the bar's buttons are a small subclass.
+- **Restore trigger:** the next mouse click — global *and* local monitor, because the old global-only monitor could not see clicks on dotbar's own UI — or Escape/Return/Enter. Navigation keys are excluded so an open menu remains usable while the item stays seated (the old monitor collapsed the chevron on any key).
+- **Key matching:** items have no stable identifier an AX read would give, but the layout file keys do (`status:<owner>::<autosave>`); owner matches by bundle id or localized name, and multi-item apps (iStat Menus runs six) are matched by the item's left-to-right order on the scan where they all showed, since the file's value order is the menu-bar order. Ghosts (no order known) are seated only when the app has exactly one key.
+- **Not verifiable from the agent's seat** (only dotbar holds the grant to the layout file): whether a dropped item re-appears live at its seat position on both displays, and how a packed laptop bar reacts (the seat may displace the leftmost visible icon into the chevron for the moment). Verify by clicking a below-bar icon with `/tmp/dotbar.log` open: `seat:` lines show the write, the shrink and the restore; `press … path=seated` shows the AX result; `path=absent` after a `seat: item did not appear` means the fallback ran.
+
 ## Hiding by pushing (the Hidden Bar / Ice trick) is fragile on macOS 27
 - Idea: a status item ("separator") made very wide pushes the items on its left off-screen.
 - On macOS 27 an item wider than the room it has is **ignored/dropped**: a 10000 px separator does nothing. Probed widths: up to ~800 px worked, 1200+ px was dropped (all icons came back).

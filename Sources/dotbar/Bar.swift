@@ -60,7 +60,7 @@ final class BarPanel {
     private var monitor: Any?
     private var items: [Item] = []
     var isShown: Bool { panel.isVisible }
-    var onPress: ((Item) -> Void)?
+    var onPress: ((Item, _ showMenu: Bool) -> Void)?
     var onArrange: (() -> Void)?
 
     init() {
@@ -81,7 +81,7 @@ final class BarPanel {
         stack.spacing = 6
         stack.edgeInsets = NSEdgeInsets(top: 4, left: 8, bottom: 4, right: 8)
         for (i, it) in items.enumerated() {
-            let b = NSButton()
+            let b = BarButton()
             b.isBordered = false
             // Apple's menu-extra agents have no real icon (just a generic placeholder), so use a matching SF Symbol.
             let symbols = ["com.apple.KerberosMenuExtra": "key.fill", "com.apple.TextInputMenuAgent": "keyboard"]
@@ -155,7 +155,14 @@ final class BarPanel {
     @objc private func press(_ b: NSButton) {
         let it = items[b.tag]
         hide()
-        onPress?(it)
+        onPress?(it, NSApp.currentEvent?.type == .rightMouseDown)
+    }
+}
+
+// NSButton ignores right clicks; the below-bar buttons want them, so a right-click opens the item's context menu.
+final class BarButton: NSButton {
+    override func rightMouseDown(with event: NSEvent) {
+        if let t = target, let a = action { NSApp.sendAction(a, to: t, from: self) }
     }
 }
 

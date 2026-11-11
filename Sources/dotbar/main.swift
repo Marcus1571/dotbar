@@ -23,6 +23,13 @@ final class App: NSObject, NSApplicationDelegate {
     var arranging = false
     var generation = 0   // bumped on every layout change so a stale grow() stops
     var pushed = false   // collapsed: the separator is pushing; false while expanded (arranging, or an item is open)
+    // A below-bar item temporarily seated next to the separator so its menu opens where it is visible.
+    struct Seat { let key: String; let savedValue: Double; let savedLength: CGFloat; var chevron = false }
+    var seat: Seat?
+    var parkedForCollapse = false   // we expanded Apple's chevron (parked path); collapse it when the interaction ends
+    var absentForPush = false       // old absent path drew the hidden icons back; push again when the interaction ends
+    var cleanupMonitor: Any?
+    var localCleanupMonitor: Any?
 
     func applicationDidFinishLaunching(_ n: Notification) {
         _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary)
@@ -33,7 +40,7 @@ final class App: NSObject, NSApplicationDelegate {
         b.target = self
         b.action = #selector(click)
         b.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        bar.onPress = { [weak self] in self?.open($0) }
+        bar.onPress = { [weak self] it, showMenu in self?.open(it, showMenu: showMenu) }
         bar.onArrange = { [weak self] in self?.toggleArranging() }
         settings.onApplied = { [weak self] in DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self?.refresh() } }
         // Rescan when the room changes or an app may have added an item; no polling.
@@ -54,6 +61,18 @@ final class App: NSObject, NSApplicationDelegate {
     }
 
     @objc func openSettings() { settings.show() }
+
+    // The app going away must leave the menu bar as it found it: undo a pending seat (file only — the separator's
+    // length and the rest die with the process).
+    func applicationWillTerminate(_ n: Notification) {
+        guard let s = seat else { return }
+        seat = nil
+        if var p = layout.read() {
+            p[s.key] = s.savedValue
+            layout.write(p)
+        }
+        log("seat: restored on quit (\(s.key))")
+    }
 
     @objc func pickProfile(_ i: NSMenuItem) {
         guard let name = i.representedObject as? String else { return }
@@ -102,6 +121,7 @@ final class App: NSObject, NSApplicationDelegate {
 
     @objc func toggleArranging() {
         arranging.toggle()
+        flushSeat()
         bar.hide()
         guard arranging else { layout.captureCurrent(); refresh(); return }
         expand()
@@ -111,30 +131,162 @@ final class App: NSObject, NSApplicationDelegate {
         }
     }
 
-    // An app opens its menu under its icon's real position, so the icon must be drawn when pressed. Drawn: press it.
-    // Parked behind Apple's overflow chevron: expand the chevron (draws it inline), press, collapse after the next click.
-    // Not on the bar (pushed by our separator, or dropped by macOS for lack of room): shrink the separator and press
-    // the element remembered from when it was visible; some apps still open that way.
-    func open(_ it: Item) {
-        if it.ghost { it.app.activate(); log("activate ghost \(it.app.localizedName ?? "?")"); return }
+    // A below-bar click opens the item's real menu under the item's real position (macOS gives no other choice, see
+    // findings.md) — so the icon must be drawn when pressed, and the point is *where* it is drawn for that moment.
+    // Drawn: press it where it is. Parked behind Apple's collapsed overflow chevron: expand the chevron (draws it
+    // inline), press, collapse when the interaction ends. Absent (pushed by our separator, or dropped by macOS for
+    // lack of room — no AX trace at all): briefly seat the item next to the separator (see seatAndPress), press it
+    // there, and put it back when the interaction ends. A ghost (off the bar since before this run, no element) gets
+    // the same seat when its app has one unambiguous layout key, else just activates the app.
+    func open(_ it: Item, showMenu: Bool) {
+        flushSeat()   // never two seats at once: put a still-pending one back first
+        if it.ghost { seatAndPress(it, showMenu: showMenu, order: 0, requireSingleKey: true); return }
         let now = menuBarItems()
-        let present = now.contains { $0.el == it.el }
-        let chevron = overflowButton()
-        let path = !present ? "absent" : chevron.map { !$0.expanded && it.x < $0.x } == true ? "parked" : "drawn"
-        if path == "parked", let c = chevron { AXUIElementPerformAction(c.el, kAXPressAction as CFString) }
-        if path == "absent" { expand() }
-        DispatchQueue.main.asyncAfter(deadline: .now() + (path == "drawn" ? 0 : 0.5)) { [self] in
-            let err = AXUIElementPerformAction(it.el, kAXPressAction as CFString)
-            log("press \(it.app.localizedName ?? "?") \(it.title.prefix(30)) path=\(path) x=\(Int(it.x)) chevron=\(chevron.map { "\(Int($0.x))\($0.expanded ? " expanded" : "")" } ?? "none") -> AXError \(err.rawValue)")
-            var m: Any?
-            m = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] _ in
-                if let mm = m { NSEvent.removeMonitor(mm) }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                    if path == "parked", let c = overflowButton(), c.expanded { AXUIElementPerformAction(c.el, kAXPressAction as CFString) }
-                    if path == "absent", self?.arranging == false { self?.collapse() }
-                }
+        if let f = now.first(where: { $0.el == it.el })
+            ?? now.first(where: { $0.app.processIdentifier == it.app.processIdentifier && !it.title.isEmpty && $0.title == it.title }) {
+            if let c = overflowButton(), !c.expanded, f.x < c.x {
+                AXUIElementPerformAction(c.el, kAXPressAction as CFString)
+                parkedForCollapse = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [self] in press(f, showMenu: showMenu, path: "parked") }
+            } else {
+                press(f, showMenu: showMenu, path: "drawn")
+            }
+            return
+        }
+        // Not on the bar: pushed by our separator, or dropped by macOS. The remembered element and the item's order
+        // among its app's items (from the scan where they all showed) are what the seat needs.
+        let appItems = (known[it.app.processIdentifier] ?? []).sorted { $0.x < $1.x }
+        let order = appItems.count > 1 ? (appItems.firstIndex { $0.el == it.el || $0.title == it.title } ?? 0) : 0
+        seatAndPress(it, showMenu: showMenu, order: order, requireSingleKey: false)
+    }
+
+    // Seat-and-open for an item that is not on the bar. Writes the item's preferred position to just right of the
+    // separator in the layout file — MenuBarAgent reorders live, so the item draws there, visible on any display —
+    // shrinks the separator by about the item's width so the chain still fits (macOS drops or clamps a too-wide
+    // item, and a clamped one leaves no room for the seated icon), waits for the item to appear, presses it there,
+    // and restores everything once the interaction ends.
+    private func seatAndPress(_ it: Item, showMenu: Bool, order: Int, requireSingleKey: Bool) {
+        guard layout.hasAccess, let p = layout.read(), let sepV = p[Layout.separatorKey],
+              let key = layout.key(for: it.app, order: order, in: p, requireSingleKey: requireSingleKey),
+              let saved = p[key], saved > sepV else {
+            log("seat: not possible for \(it.app.localizedName ?? "?") (access=\(layout.hasAccess), key=\(keyDescription(it, order: order)))")
+            if it.ghost { it.app.activate(); log("activate ghost \(it.app.localizedName ?? "?")"); return }
+            fallbackAbsent(it, showMenu: showMenu)
+            return
+        }
+        let seatValue = sepV - 0.5
+        let savedLength = separator.length
+        generation += 1   // stop any in-flight grow (e.g. the one restoring a just-flushed seat)
+        layout.write(p.merging([key: seatValue]) { _, new in new })
+        separator.length = max(narrow, savedLength - max(24, it.w + 8))
+        seat = Seat(key: key, savedValue: saved, savedLength: savedLength)
+        log("seat: \(key) \(saved) -> \(seatValue), separator \(Int(savedLength)) -> \(Int(separator.length))")
+        pressSeated(it, showMenu: showMenu, tries: 2)
+    }
+
+    private func keyDescription(_ it: Item, order: Int) -> String {
+        let p = layout.read() ?? [:]
+        return layout.key(for: it.app, order: order, in: p, requireSingleKey: false) ?? "none"
+    }
+
+    // Wait for MenuBarAgent to lay the seated item out, then press it. If it ended up parked after all (packed bar),
+    // Apple's chevron still draws it inline. If it never appears, undo the seat and use the old path.
+    private func pressSeated(_ it: Item, showMenu: Bool, tries: Int) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [self] in
+            let now = menuBarItems()
+            let fresh = now.first { $0.el == it.el }
+                ?? now.first { $0.app.processIdentifier == it.app.processIdentifier && (it.title.isEmpty || $0.title == it.title) }
+            guard let f = fresh else {
+                if tries > 1 { pressSeated(it, showMenu: showMenu, tries: tries - 1); return }
+                log("seat: item did not appear next to the separator; undoing the seat and using the old path")
+                if let s = seat { restoreSeat(s) }
+                fallbackAbsent(it, showMenu: showMenu)
+                return
+            }
+            if let c = overflowButton(), !c.expanded, f.x < c.x {
+                seat?.chevron = true
+                AXUIElementPerformAction(c.el, kAXPressAction as CFString)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [self] in press(f, showMenu: showMenu, path: "seated+chevron") }
+            } else {
+                press(f, showMenu: showMenu, path: "seated")
             }
         }
+    }
+
+    // Press the item's element: kAXPressAction opens the item's primary menu; a right-click asks for the secondary
+    // (context) menu with AXShowMenu, falling back to the press when an item has no such action.
+    private func press(_ it: Item, showMenu: Bool, path: String) {
+        var err = AXUIElementPerformAction(it.el, showMenu ? "AXShowMenu" as CFString : kAXPressAction as CFString)
+        if showMenu, err != .success {
+            let first = err
+            err = AXUIElementPerformAction(it.el, kAXPressAction as CFString)
+            log("AXShowMenu failed (AXError \(first.rawValue)); pressed instead")
+        }
+        log("press \(it.app.localizedName ?? "?") \(it.title.prefix(30)) path=\(path) action=\(showMenu ? "showMenu" : "press") x=\(Int(it.x)) -> AXError \(err.rawValue)")
+        armCleanup()
+    }
+
+    // Old path, when the seat is not possible: shrink the separator so the item is drawn again, press the element
+    // remembered from when it was visible (some apps keep it working), push again after the interaction ends.
+    private func fallbackAbsent(_ it: Item, showMenu: Bool) {
+        expand()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [self] in
+            let err = AXUIElementPerformAction(it.el, showMenu ? "AXShowMenu" as CFString : kAXPressAction as CFString)
+            log("press \(it.app.localizedName ?? "?") \(it.title.prefix(30)) path=absent action=\(showMenu ? "showMenu" : "press") -> AXError \(err.rawValue)")
+            absentForPush = true
+            armCleanup()
+        }
+    }
+
+    // When the interaction ends (the next mouse click anywhere, or Escape/Return — plain keys stay out so the menu
+    // can be navigated while the item stays seated): put the seat back, collapse the chevron if we expanded it,
+    // push the hidden icons away again if the old path drew them.
+    private func armCleanup() {
+        if let m = cleanupMonitor { NSEvent.removeMonitor(m); cleanupMonitor = nil }
+        if let m = localCleanupMonitor { NSEvent.removeMonitor(m); localCleanupMonitor = nil }
+        let fire = { [weak self] in
+            guard let self else { return }
+            if let m = self.cleanupMonitor { NSEvent.removeMonitor(m); self.cleanupMonitor = nil }
+            if let m = self.localCleanupMonitor { NSEvent.removeMonitor(m); self.localCleanupMonitor = nil }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in self?.finishInteraction() }
+        }
+        let menuEnds = { (e: NSEvent) -> Bool in e.type != .keyDown || e.keyCode == 53 || e.keyCode == 36 || e.keyCode == 76 }
+        cleanupMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { e in if menuEnds(e) { fire() } }
+        localCleanupMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { e in
+            if menuEnds(e) { fire() }
+            return e
+        }
+    }
+
+    private func finishInteraction() {
+        let chevron = parkedForCollapse || seat?.chevron == true
+        let wasAbsent = absentForPush
+        parkedForCollapse = false
+        absentForPush = false
+        if chevron, let c = overflowButton(), c.expanded { AXUIElementPerformAction(c.el, kAXPressAction as CFString) }
+        if let s = seat { restoreSeat(s) } else if wasAbsent, !arranging { collapse() }
+    }
+
+    // Put a seated item back where it was (its saved preferred position in the layout file), restore the separator's
+    // length and re-tighten the push from there — like refit, not from narrow, so hidden icons do not flash back.
+    private func restoreSeat(_ s: Seat) {
+        seat = nil
+        if var p = layout.read() {
+            p[s.key] = s.savedValue
+            layout.write(p)
+        } else { log("seat: restore failed, the layout file is unreadable") }
+        separator.length = s.savedLength
+        generation += 1
+        if let f = separator.button?.window?.frame { grow(generation, length: separator.length, steps: [16, 4], minX: f.minX) }
+        log("seat: restored \(s.key) -> \(s.savedValue), separator -> \(Int(s.savedLength))")
+    }
+
+    // Undo a pending seat before anything else moves the bar (another open, a refresh, arranging). restoreSeat also
+    // re-tightens the push, which refresh re-does anyway — harmless.
+    func flushSeat() {
+        guard let s = seat else { return }
+        log("seat: flushed before refresh")
+        restoreSeat(s)
     }
 
     // Cheap re-read without moving anything: remember every item, and list as hidden the ones left of our separator,
@@ -180,6 +332,7 @@ final class App: NSObject, NSApplicationDelegate {
     // Expand, read where every item sits (expanded, our hidden items are back on the bar when there is room), then
     // push them away again.
     func refresh() {
+        flushSeat()
         expand()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [self] in
             guard !arranging else { return }
