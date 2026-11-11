@@ -14,7 +14,13 @@ Built because Bartender 6 stopped working on macOS 27, which draws every menu-ba
 ## Permissions
 **Accessibility** only, which macOS 27 calls *Device Control and Data Access*. dotbar never asks for Screen Recording ([details](KB.md#permissions)).
 
-## Build
-`scripts/build-app.sh --install` builds with plain `swiftc`, installs to `~/Applications` and launches; [signing keeps the Accessibility grant across rebuilds](KB.md#signing).
+## Install
+
+Download the latest DMG from [GitHub Releases](https://github.com/Marcus1571/dotbar/releases), open it, drag **dotbar** to Applications and launch it. It is signed with a Developer ID certificate and notarized by Apple, so Gatekeeper opens it normally. On first launch, allow Accessibility when asked (macOS 27: System Settings → *Device Control and Data Access*); dotbar then reads the menu bar and shows its bar. Nothing else — no Screen Recording, no network, no background daemons.
+
+## Build from source
+`scripts/build-app.sh --install` builds with plain `swiftc` (no Xcode, no dependencies), installs to `~/Applications` and launches. The app icon is generated at build time; `scripts/make-dmg.sh` builds the notarized distribution DMG. [Signing details](KB.md#signing) — a stable local certificate keeps the Accessibility grant across rebuilds.
+
+Licensed under the [MIT license](LICENSE).
 
 Everything else, from the inventory walk to the debug log, is in the [knowledge base](KB.md).

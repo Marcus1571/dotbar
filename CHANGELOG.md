@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Published: dotbar is now distributed like the sibling apps. `scripts/make-dmg.sh` builds `build/dist/dotbar-<version>.dmg` — Developer ID signed (`Marco Dal Moro (NGPL7S3YX3)`), notarized through the shared `diskledplus-notary` keychain profile, stapled and validated; the DMG is attached to each GitHub Release. A Developer ID identity in `build-app.sh` also gets the hardened runtime and a timestamp, which notarization requires; the local `dotbar local signing` certificate remains the default for dev installs (it keeps the Accessibility grant across rebuilds).
+- New: *About dotbar* at the top of the dot's right-click menu — the standard About panel (accessory apps have no menu bar) showing the new app icon, version and credits.
+- New: an app icon, generated at build time by `scripts/make-icon.swift` into an iconset and compiled to `AppIcon.icns` (dark plate, a white dot above a light bar — the menu-bar dot and the second bar below it; no binary assets in the repo). Info.plist gains `CFBundleIconFile`, `CFBundleDisplayName` and a copyright line; `Resources/Credits.rtf` carries the project link.
+- New: `LICENSE` (MIT).
+
 ## 0.2.1 (2026-11-11)
 
 - Fix: seated items were pressed with the Accessibility press action, which some apps ignore on an item that just appeared — BetterDisplay returned AXError 0 and no menu opened (and Apple's agents without a real app, e.g. the input-menu agent, support neither AXPress nor AXShowMenu at all). A freshly seated item is now pressed with a real synthetic click (CGEvent, left or right button per the click) at its drawn position, which is also the faithful "equivalent of a right click"; the accessibility press stays for items already on the bar and as the fallback when the events cannot be posted. The pointer moves to the icon for the moment of the click, as with any click.

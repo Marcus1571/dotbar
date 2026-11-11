@@ -62,6 +62,13 @@ final class App: NSObject, NSApplicationDelegate {
 
     @objc func openSettings() { settings.show() }
 
+    // Standard About panel: name, version, the app icon and Credits.rtf from the bundle (an accessory app has no
+    // menu bar, so this lives in the dot's right-click menu).
+    @objc func about() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(nil)
+    }
+
     // The app going away must leave the menu bar as it found it: undo a pending seat (file only — the separator's
     // length and the rest die with the process).
     func applicationWillTerminate(_ n: Notification) {
@@ -84,6 +91,8 @@ final class App: NSObject, NSApplicationDelegate {
         guard let e = NSApp.currentEvent else { return }
         if e.type == .rightMouseUp || e.modifierFlags.contains(.option) {
             let m = NSMenu()
+            m.addItem(withTitle: "About dotbar", action: #selector(about), keyEquivalent: "")
+            m.addItem(.separator())
             if layout.hasAccess {
                 for name in Layout.profileNames {
                     let i = m.addItem(withTitle: name, action: #selector(pickProfile(_:)), keyEquivalent: "")
