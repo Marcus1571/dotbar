@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix: seated items were pressed with the Accessibility press action, which some apps ignore on an item that just appeared — BetterDisplay returned AXError 0 and no menu opened (and Apple's agents without a real app, e.g. the input-menu agent, support neither AXPress nor AXShowMenu at all). A freshly seated item is now pressed with a real synthetic click (CGEvent, left or right button per the click) at its drawn position, which is also the faithful "equivalent of a right click"; the accessibility press stays for items already on the bar and as the fallback when the events cannot be posted. The pointer moves to the icon for the moment of the click, as with any click.
+
 ## 0.2.0 (2026-11-11)
 
 - Feature: icons clicked in the below bar now open their menu where it can be seen. When the clicked item is not drawn (pushed away by the separator, or dropped by macOS with no Accessibility trace at all), dotbar *seats* it for the moment: it writes the item's preferred position to just right of the separator in the layout file, shrinks the separator by about one icon's width so the chain still fits, presses the item there once it appears, and restores its saved position and the push when the interaction ends (the next mouse click, or Escape/Return). This also works for dimmed ghosts of single-item apps, which had no element to press. Falls back to the old shrink-and-press path when layout access is missing, the item's layout key is unknown, or the seat does not appear within 1 s.

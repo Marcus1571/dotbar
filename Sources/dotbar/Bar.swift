@@ -6,8 +6,10 @@ struct Item {
     let el: AXUIElement
     let app: NSRunningApplication
     let x: CGFloat, w: CGFloat
+    let y: CGFloat, h: CGFloat   // full frame: a freshly seated item is pressed with a real click at this position
     let title: String
     var ghost = false   // remembered from an earlier run but not seen since: no element to press yet
+    var frame: CGRect { CGRect(x: x, y: y, width: w, height: h) }
 }
 
 private func attr(_ el: AXUIElement, _ a: String) -> CFTypeRef? {
@@ -49,7 +51,7 @@ func menuBarItems() -> [Item] {
         if let f = attr(g, "AXFrame") { AXValueGetValue(f as! AXValue, .cgRect, &r) }
         let t = (attr(el, kAXTitleAttribute) as? String).flatMap { $0.isEmpty ? nil : $0 }
             ?? (attr(el, kAXDescriptionAttribute) as? String) ?? ""
-        out.append(Item(el: el, app: app, x: r.minX, w: r.width, title: t))
+        out.append(Item(el: el, app: app, x: r.minX, w: r.width, y: r.minY, h: r.height, title: t))
     }
     return out.sorted { $0.x < $1.x }
 }

@@ -206,11 +206,39 @@ final class App: NSObject, NSApplicationDelegate {
             if let c = overflowButton(), !c.expanded, f.x < c.x {
                 seat?.chevron = true
                 AXUIElementPerformAction(c.el, kAXPressAction as CFString)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [self] in press(f, showMenu: showMenu, path: "seated+chevron") }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [self] in pressClicked(f, showMenu: showMenu, path: "seated+chevron") }
             } else {
-                press(f, showMenu: showMenu, path: "seated")
+                pressClicked(f, showMenu: showMenu, path: "seated")
             }
         }
+    }
+
+    // A freshly seated item is pressed with a real synthetic click at its drawn position, left or right button per
+    // the click: some apps (BetterDisplay) answer a real click but silently ignore the accessibility press on an
+    // item that just appeared (measured 2026-11-11: AXPress returned AXError 0 and no menu), and Apple's agents
+    // without a real app support neither AXPress nor AXShowMenu. Falls back to the accessibility press if the
+    // events cannot be posted.
+    private func pressClicked(_ it: Item, showMenu: Bool, path: String) {
+        if it.frame != .zero, postClick(it.frame, right: showMenu) {
+            log("press \(it.app.localizedName ?? "?") \(it.title.prefix(30)) path=\(path) action=\(showMenu ? "right" : "left") click frame=\(Int(it.frame.minX))..\(Int(it.frame.maxX))")
+            armCleanup()
+        } else {
+            press(it, showMenu: showMenu, path: path)   // logs and arms the cleanup itself
+        }
+    }
+
+    // Post a real click at a frame in screen coordinates — what a finger would have done.
+    private func postClick(_ f: CGRect, right: Bool) -> Bool {
+        let p = CGPoint(x: f.midX, y: f.midY)
+        let b: CGMouseButton = right ? .right : .left
+        guard let down = CGEvent(mouseEventSource: nil, mouseType: right ? .rightMouseDown : .leftMouseDown, mouseCursorPosition: p, mouseButton: b),
+              let up = CGEvent(mouseEventSource: nil, mouseType: right ? .rightMouseUp : .leftMouseUp, mouseCursorPosition: p, mouseButton: b)
+        else { return false }
+        for e in [down, up] { e.setIntegerValueField(.mouseEventClickState, value: 1) }
+        down.post(tap: .cghidEventTap)
+        usleep(30_000)
+        up.post(tap: .cghidEventTap)
+        return true
     }
 
     // Press the item's element: kAXPressAction opens the item's primary menu; a right-click asks for the secondary
@@ -311,7 +339,7 @@ final class App: NSObject, NSApplicationDelegate {
         let seen = Set((all + gone).compactMap(\.app.bundleIdentifier))
         let ghosts = (UserDefaults.standard.stringArray(forKey: "offbar") ?? []).filter { !seen.contains($0) }
             .compactMap { NSRunningApplication.runningApplications(withBundleIdentifier: $0).first }
-            .map { Item(el: AXUIElementCreateApplication($0.processIdentifier), app: $0, x: 0, w: 0, title: "", ghost: true) }
+            .map { Item(el: AXUIElementCreateApplication($0.processIdentifier), app: $0, x: 0, w: 0, y: 0, h: 0, title: "", ghost: true) }
         UserDefaults.standard.set(Array(Set((gone + ghosts).compactMap(\.app.bundleIdentifier))).sorted(), forKey: "offbar")
         hidden = all.filter { i in i.x + i.w / 2 < sep || chevron.map { i.x < $0 } == true } + gone + ghosts
         log("scan (\(why)) items=\(all.count) sepMinX=\(Int(sep)) chevron=\(chevron.map { "\(Int($0))" } ?? "none") hidden=\(hidden.count) offbar=\(gone.count)\n"
