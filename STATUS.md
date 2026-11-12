@@ -7,6 +7,8 @@ New in this session (unreleased): **seated opening** — clicking (left *or* rig
 
 **Published (0.3.0):** the app is now distributed like the siblings — `scripts/make-dmg.sh` builds a Developer ID-signed, notarized and stapled DMG attached to each GitHub Release; an app icon is generated at build time (`scripts/make-icon.swift`); *About dotbar* opens the standard About panel from the dot's right-click menu; MIT `LICENSE`; install instructions in the README. The operator's own install keeps the local `dotbar local signing` certificate so its Accessibility grant stays intact; switching it to the Developer ID identity needs a one-time re-grant (KB §Signing).
 
+Docs (2026-11-12, docs-only push): the README now shows screenshots like the sibling repos — the bar below the menu bar in light and dark, and a clicked item's real menu opening at the seat (`docs/`). Taken from the agent session itself: Screen Recording turned out to be available to the session host, and the bar responds to real synthetic CGEvent clicks but not AX presses (measured: [findings.md](findings.md#screenshots-and-real-clicks-from-an-agent-session-measured-2026-11-12)).
+
 ## Hard constraint (settled by research 2026-11-05)
 No tool can open another app's menu or popover under dotbar's bar: the app anchors it to its own icon's position in the real menu bar, and the icon must be drawn there when pressed. Thaw 3 and Bartender live with the same limit. The design choice is therefore *where* the clicked icon is drawn for that moment — the seat answers it: next to the separator, briefly. Evidence: [findings.md](findings.md#why-the-other-menu-bar-managers-broke-on-macos-27-read-2026-11-05).
 
