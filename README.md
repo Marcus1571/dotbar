@@ -4,6 +4,15 @@ A tiny macOS menu-bar manager: icons you do not need every day move out of the w
 
 Built because Bartender 6 stopped working on macOS 27, which draws every menu-bar icon in one shared window and broke every manager that moved icon windows around ([what changed](findings.md#why-the-other-menu-bar-managers-broke-on-macos-27-read-2026-11-05)). **Status: work in progress**, working but rough; see [STATUS.md](STATUS.md).
 
+<p align="center">
+  <img src="docs/bar-light.png" height="68" alt="Menu bar with dotbar's dot, and the bar below it listing the hidden icons (keyboard, Defender, BetterDisplay, iStat Menus, Dropover), light mode">
+  &nbsp;&nbsp;
+  <img src="docs/bar-dark.png" height="68" alt="The same bar in dark mode">
+</p>
+<p align="center">
+  <img src="docs/menu-open.png" width="420" alt="After clicking the BetterDisplay icon in the bar, its real menu opens under the icon, which dotbar briefly drew next to the separator">
+</p>
+
 ## How it works
 - dotbar puts a dot and a separator in the menu bar; [icons left of the separator are the hidden ones](KB.md#hiding-pushing).
 - Click the dot and a small [bar appears under the menu bar](KB.md#the-bar-below-the-menu-bar) with those icons (app icons, live text where the app exposes it). Click one — left **or** right — and [its real menu opens](KB.md#opening-an-item): dotbar briefly draws the icon next to the separator, where it is visible even when the bar has no room for it, and puts it back afterwards.
