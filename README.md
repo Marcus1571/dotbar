@@ -10,7 +10,7 @@ Built because Bartender 6 stopped working on macOS 27, which draws every menu-ba
   <img src="docs/bar-dark.png" height="68" alt="The same bar in dark mode">
 </p>
 <p align="center">
-  <img src="docs/menu-open.png" width="420" alt="After clicking the BetterDisplay icon in the bar, its real menu opens under the icon, which dotbar briefly drew next to the separator">
+  <img src="docs/menu-open.png" width="560" alt="Clicking the ringed BetterDisplay icon in the bar opens its real menu right below the menu bar, where dotbar briefly drew it next to the separator; dotbar's dot is ringed at the right end">
 </p>
 
 ## How it works
