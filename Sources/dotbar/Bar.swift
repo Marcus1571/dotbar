@@ -56,6 +56,19 @@ func menuBarItems() -> [Item] {
     return out.sorted { $0.x < $1.x }
 }
 
+// Where the frontmost app's menus end (right edge of its last menu item). macOS draws hidden icons inline right
+// after the app menus when they are short (measured 2026-11-13), so the spacer must cover from here to the
+// separator. nil when the app exposes no readable menu bar (accessories without menus).
+func appMenusEnd() -> CGFloat? {
+    guard let app = NSWorkspace.shared.frontmostApplication,
+          let bar = attr(AXUIElementCreateApplication(app.processIdentifier), kAXMenuBarAttribute),
+          let items = (attr(bar as! AXUIElement, kAXChildrenAttribute) as? [AXUIElement]), let last = items.last,
+          let f = attr(last, "AXFrame") else { return nil }
+    var r = CGRect.zero
+    AXValueGetValue(f as! AXValue, .cgRect, &r)
+    return r.maxX
+}
+
 // The second bar: a small floating strip under the menu bar, one button per hidden item.
 final class BarPanel {
     private let panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: true)

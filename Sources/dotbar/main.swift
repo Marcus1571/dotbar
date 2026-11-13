@@ -434,18 +434,52 @@ final class App: NSObject, NSApplicationDelegate {
         grow(generation, length: narrow, steps: [64, 16, 4], minX: separator.button?.window?.frame.minX ?? 0)
     }
 
-    // With short app menus macOS stops the separator at the hidden icons that still fit left of it and keeps them drawn
-    // (findings.md). Widen the invisible spacer over them so they no longer fit, then check again.
+    // With short app menus macOS stops the separator at the hidden icons that still fit left of it and keeps them
+    // drawn, and it even draws parked items inline right after the app menus while Accessibility reports them parked
+    // behind the chevron (both measured 2026-11-13). The invisible spacer must therefore cover the whole gap from the
+    // end of the frontmost app's menus to the separator — that anchor is stable no matter how macOS's transient
+    // re-packs move the icons; the icons' own frames are not. macOS re-packs the bar seconds after a length change,
+    // so every finished squeeze schedules a settle check.
     func squeeze(_ gen: Int, tries: Int) {
         guard gen == generation, tries > 0, let sep = separator.button?.window?.frame.minX else { return }
-        let all = menuBarItems(), left = all.filter { $0.x < sep }
-        guard let first = left.first, spacer.length < 400 else {
-            log("squeeze: \(left.count) hidden icon(s) drawn left of the separator at x=\(Int(sep)) (\(all.count) items read), spacer \(Int(spacer.length))\(left.isEmpty ? "" : ", at its cap")")
+        let all = menuBarItems()
+        guard !all.isEmpty else { settleCheck(gen); return }
+        let drawn = all.filter { $0.x < sep }
+        let start = appMenusEnd() ?? drawn.first?.x
+        guard let start, sep - start > 1 else {
+            log("squeeze: 0 hidden icon(s) drawn left of the separator at x=\(Int(sep)) (\(all.count) items read), spacer \(Int(spacer.length))")
+            settleCheck(gen)
             return
         }
-        spacer.length = min(400, spacer.length + sep - first.x)   // ponytail: cap, a runaway width wrecks the bar
-        log("squeeze: \(left.count) hidden icon(s) still drawn from x=\(Int(first.x)) to the separator at x=\(Int(sep)), spacer -> \(Int(spacer.length))")
+        let set = max(1, sep - start - 4)
+        if Int(spacer.length) == Int(set), drawn.isEmpty {
+            // Already covering the whole gap: parked items have no room to be drawn inline. Done.
+            log("squeeze: 0 hidden icon(s) drawn left of the separator at x=\(Int(sep)) (\(all.count) items read), spacer \(Int(spacer.length))")
+            settleCheck(gen)
+            return
+        }
+        if Int(spacer.length) == Int(set) {
+            spacer.length = max(1, set - 8)   // this exact width changed nothing (macOS dropped it): try thinner
+        } else {
+            spacer.length = set
+        }
+        log("squeeze: spacer -> \(Int(spacer.length)) covering x=\(Int(start))..\(Int(sep)), \(drawn.count) hidden icon(s) drawn left of the separator")
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [self] in squeeze(gen, tries: tries - 1) }
+    }
+
+    // macOS re-packs the bar asynchronously, sometimes seconds after our length change: the grow/squeeze dance can end
+    // before the settle, with hidden icons drawn in the final layout. Re-check once it has — a few rounds deep at most,
+    // nothing when there is nothing to do, so this is not polling.
+    func settleCheck(_ gen: Int, depth: Int = 0) {
+        guard depth < 4 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [self] in
+            guard gen == generation, pushed, !arranging, seat == nil, !bar.isShown else { return }
+            guard let sep = separator.button?.window?.frame.minX else { return }
+            let all = menuBarItems()
+            guard !all.isEmpty, all.contains(where: { $0.x < sep }) else { return }
+            log("settle: hidden icon(s) drawn after macOS re-packed, squeezing again (round \(depth + 1))")
+            squeeze(gen, tries: 5)
+        }
     }
 
     // After an app switch: shrink in 64-point steps while the left edge stays pinned (macOS clamps a too-wide item at the
@@ -478,7 +512,7 @@ final class App: NSObject, NSApplicationDelegate {
     // separator and the dot (iStat Menus text) change width all the time and move it.
     func grow(_ gen: Int, length: CGFloat, steps: [CGFloat], minX: CGFloat) {
         guard gen == generation, let w = separator.button?.window else { return }
-        guard let step = steps.first else { squeeze(gen, tries: 3); return }
+        guard let step = steps.first else { squeeze(gen, tries: 5); return }
         let next = length + step
         separator.length = next
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [self] in
