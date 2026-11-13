@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.2 (2026-11-13)
 
 - Fix: hidden icons reappeared in the real menu bar next to short app menus (e.g. Herdr) — macOS 27 draws parked items inline right after the app menus while Accessibility keeps reporting them parked behind its chevron, so the squeeze's check ("any hidden icons drawn left of the separator?") read none and never fired, and the icons sat there for good (measured 2026-11-13). The invisible spacer is now set to cover the whole gap from the end of the frontmost app's menus (read from that app's `AXMenuBar`) to the separator — an anchor that is stable no matter how macOS re-packs the icons — instead of `spacer + distance to the leftmost drawn icon`, which overshot the gap and made macOS drop the spacer entirely (handing the room straight back to the icons). The old fallback (leftmost drawn icon) still applies when the app exposes no menu bar.
 - New: a settle check 2 s after every finished squeeze (up to 4 rounds, nothing when there is nothing to do — no polling). macOS re-packs the menu bar seconds after a length change; the grow/squeeze dance previously ended before that settle, so the final layout could have hidden icons drawn that nobody re-pushed (measured: fresh launch, icons drawn at x=138–212 with truthful frames ~15 s after the dance had concluded "0 drawn").

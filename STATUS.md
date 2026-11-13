@@ -1,7 +1,7 @@
 # Status (2026-11-13)
 
 ## Where things stand
-Version 0.3.1, released 2026-11-11. Works: dot and separator in the menu bar, the bar below the menu bar listing hidden items, pressing one opens its real menu, Accessibility only, ~0% CPU idle.
+Version 0.3.2, released 2026-11-13. Works: dot and separator in the menu bar, the bar below the menu bar listing hidden items, pressing one opens its real menu, Accessibility only, ~0% CPU idle.
 
 New in this session (0.3.2, unreleased): **the parked-inline leak is fixed.** macOS 27 draws parked items inline next to short app menus (e.g. Herdr) while Accessibility reports them parked behind its chevron — the squeeze's own check read "0 hidden icons drawn" and never fired, so iStat Menus Disks/Sensors/Teams sat visibly next to the app menu for good. The spacer now covers the whole gap from the end of the frontmost app's menus (its `AXMenuBar`) to the separator — stable across macOS's async re-packs — and a settle check 2 s after every squeeze catches the late re-pack (the dance used to end before macOS settled, with icons drawn that nobody re-pushed). Design and evidence: [findings.md](findings.md#the-parked-inline-leak-measured-live-2026-11-13-external-display-2048x858-pt-herdr-in-front), behaviour: [KB.md](KB.md#hiding-pushing). Verified live on the external display: the dance converges to a clean bar within ~1 s of an app switch, idle CPU 0.0%.
 
