@@ -87,3 +87,50 @@ The shelved "seat beside the dot" idea (STATUS 2026-11-05) became possible once 
 - Escape (System Events `key code 53`) closes the opened menu, and the seat restores itself within ~1 s (`seat: restored`). Opening a menu is passive; nothing is invoked.
 - AX positions and `screencapture -R` share one global coordinate space; with the lid closed there is a single display (the 4K external at 1920x1080, 2x), so `-R` crops land exactly where AX says. README screenshots (`docs/bar-light.png`, `docs/bar-dark.png`, `docs/menu-open.png`) were taken this way, light and dark via an appearance-preferences toggle that was reverted after.
 - Verdict: the agent can fully photograph and drive dotbar's UI; what still needs the operator is only what needs hands (unplugging a display) or taste. Annotating the shots (red rings around the dot and the seated icon) worked with ImageMagick `magick -draw roundrectangle`; a hand-rolled CoreGraphics stroke over an `NSBitmapImageRep` context drew unreliably (rings silently missing on some runs).
+
+## NSMenuItem.image does not render in dotbar's menu on macOS 27 (2026-11-14, porting Report a Bug)
+
+While porting the siblings' "Report a Bug" item to dotbar (0.4.0), the ladybug
+SF Symbol set on the menu item (`NSMenuItem.image`, explicitly built with
+`NSImage(systemSymbolName: "ladybug.fill")` + a 13 pt symbol configuration)
+never appeared in the dot's right-click menu — the identical item renders fine
+in diskled-plus's menu (same macOS build, same day).
+
+What was ruled out, with evidence:
+- The image is set at runtime: a debug log line printed
+  `bug item image=set size=(18.0, 18.0) template=true` right after the
+  assignment; the item itself renders (title, target/action, position all
+  correct in AX and screenshots).
+- Menu display mode: tried dotbar's transient trick
+  (`dot.menu = m; performClick; dot.menu = nil`) AND a persistent
+  `dot.menu = m` (temporarily left set) — no icon either way.
+- `NSHighResolutionCapable`: dotbar's Info.plist lacked it (both siblings have
+  it); adding it did not change menu icon rendering (kept anyway — it belongs
+  in every modern app).
+- Standalone rendering: the exact same image call works in a plain script and
+  in dotbar's own About window (the bug row's ladybug `NSImageView` renders).
+- Automatic menu icons (macOS 26+): dotbar's menu DOES get them (a ⚙ appeared
+  on "Settings…" with no explicit image), but no automatic ladybug was
+  supplied for "Report a Bug…" — while diskled-plus's identical item shows a
+  *colored* ladybug (suggesting diskled's icon may itself be the automatic
+  system at work, not the explicit template image).
+
+Verdict: unexplained macOS 27 rendering difference between the two apps'
+menus; the honest adaptation is the operator's originally suggested emoji in
+the title (`🪲 Report a Bug…`), which renders everywhere. If a future macOS
+build renders it, the SF Symbol image is a one-line revert.
+
+## CGEvent clicks from the agent session stopped working mid-session (2026-11-14)
+
+During the same session, synthetic CGEvent clicks (which drove dotbar's menu
+opens for screenshots at ~18:44–18:51, and worked in prior sessions per the
+recipe above) stopped opening ANY app's menu-bar menu — dotbar's and
+diskled-plus's alike — while CGEvent mouse *moves* still landed (hover
+tooltips appeared). AX clicks still reached items but dotbar's right-click
+menu needs a real rightMouseUp event, so it stopped being openable. Verified
+the new surfaces instead via a temporary env-var-gated auto-open build
+(`DOTBAR_ABOUT_VERIFY`/`DOTBAR_BUG_VERIFY` in applicationDidFinishLaunching,
+removed before release): the About window was captured headlessly and
+`reportBug()`'s `NSWorkspace.open` brought the browser forward. Lesson: when
+synthetic clicks go dark mid-session, fall back to launch-time hooks rather
+than retrying the click path.

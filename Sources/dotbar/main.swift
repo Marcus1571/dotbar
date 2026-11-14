@@ -62,11 +62,46 @@ final class App: NSObject, NSApplicationDelegate {
 
     @objc func openSettings() { settings.show() }
 
-    // The About window, opened from the dot's menu — the same mini page as UsageBar's and NeverSleep's: the app
-    // icon at 96 pt, name, "Version x (build y)", © line with the operator's public identity (Marcus1571, not the
-    // real name), the license, the GitHub repo and a one-line tagline. An accessory app has no menu bar, so this
-    // lives in the dot's right-click menu.
+    /// Opens the repository's GitHub Issues page in the default browser.
+    @objc func reportBug() {
+        NSWorkspace.shared.open(URL(string: "https://github.com/Marcus1571/dotbar/issues")!)
+    }
+
+    // The About window, opened from the dot's menu — the same mini page as the siblings' current standard
+    // (diskled-plus 0.9+, NeverSleep 0.7+, UsageBar 0.9): the app icon at 96 pt, name, "Version x (build y)", the
+    // PayPal donation QR block, the © line with the operator's public identity (Marcus1571, not the real name),
+    // the license, the GitHub repo, the bug-report block and a one-line tagline. An accessory app has no menu
+    // bar, so this lives in the dot's right-click menu.
     private var aboutWindow: NSWindow?
+
+    /// Borderless button styled as a blue link, opening its URL on click — replaces attributed NSTextField
+    /// link labels, which never fired on click in these About windows (diskled-plus 0.10.1, confirmed there).
+    final class LinkButton: NSButton {
+        private let url: URL
+
+        init(text: String, size: CGFloat, url: URL) {
+            self.url = url
+            super.init(frame: .zero)
+            isBordered = false
+            attributedTitle = NSAttributedString(
+                string: text,
+                attributes: [.font: NSFont.systemFont(ofSize: size),
+                             .foregroundColor: NSColor.linkColor])
+            target = self
+            action = #selector(openLink)
+            let tracking = NSTrackingArea(rect: .zero,
+                                          options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                                          owner: self)
+            addTrackingArea(tracking)
+        }
+
+        required init?(coder: NSCoder) { fatalError("LinkButton is built in code only") }
+
+        override func mouseEntered(with event: NSEvent) { NSCursor.pointingHand.push() }
+        override func mouseExited(with event: NSEvent) { NSCursor.pop() }
+
+        @objc private func openLink() { NSWorkspace.shared.open(url) }
+    }
 
     @objc func about() {
         if aboutWindow == nil {
@@ -80,25 +115,74 @@ final class App: NSObject, NSApplicationDelegate {
                 l.alignment = .center
                 return l
             }
-            let link = NSTextField(labelWithAttributedString: NSAttributedString(
-                string: "github.com/Marcus1571/dotbar",
-                attributes: [.link: URL(string: "https://github.com/Marcus1571/dotbar")!,
-                             .font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor.linkColor]))
-            link.isSelectable = true
-            link.alignment = .center
+            func link(_ s: String, _ size: CGFloat, _ url: URL) -> NSView {
+                LinkButton(text: s, size: size, url: url)
+            }
             let tagline = label("Hide the menu-bar icons you do not need every day and reach them in a second bar below the menu bar.", 11, .regular, .secondaryLabelColor)
             tagline.lineBreakMode = .byWordWrapping
             tagline.preferredMaxLayoutWidth = 252
-            let divider = NSBox()
-            divider.boxType = .separator
-            divider.widthAnchor.constraint(equalToConstant: 260).isActive = true
+            func divider() -> NSBox {
+                let d = NSBox()
+                d.boxType = .separator
+                d.widthAnchor.constraint(equalToConstant: 260).isActive = true
+                return d
+            }
             let icon = NSImageView(image: NSApp.applicationIconImage)
             icon.widthAnchor.constraint(equalToConstant: 96).isActive = true
             icon.heightAnchor.constraint(equalToConstant: 96).isActive = true
-            let stack = NSStackView(views: [icon, label("dotbar", 22, .bold),
-                                            label("Version \(v) (build \(b))", 11, .regular, .secondaryLabelColor),
-                                            divider, label("© 2026 Marcus1571", 13),
-                                            label("MIT", 11, .regular, .secondaryLabelColor), link, tagline])
+
+            // Donation block: PayPal.me QR + tappable link (phones can't scan
+            // their own screen, so the link matters). QR is bundled as
+            // paypal-qr.png; when absent (bare build, no bundle) the block
+            // degrades to text.
+            var qrView: NSImageView?
+            if let url = Bundle.main.url(forResource: "paypal-qr", withExtension: "png"),
+               let qr = NSImage(contentsOf: url) {
+                let v = NSImageView(image: qr)
+                v.imageScaling = .scaleProportionallyUpOrDown
+                v.widthAnchor.constraint(equalToConstant: 88).isActive = true
+                v.heightAnchor.constraint(equalToConstant: 88).isActive = true
+                v.setAccessibilityLabel("PayPal donation QR code")
+                qrView = v
+            }
+            var bugIcon: NSView?
+            if let img = NSImage(systemSymbolName: "ladybug.fill", accessibilityDescription: "Report a Bug")?
+                .withSymbolConfiguration(.init(pointSize: 12, weight: .regular)) {
+                let v = NSImageView(image: img)
+                v.widthAnchor.constraint(equalToConstant: 16).isActive = true
+                v.heightAnchor.constraint(equalToConstant: 15).isActive = true
+                v.setAccessibilityLabel("Bug")
+                bugIcon = v
+            }
+            let bugRow: NSView
+            if let bugIcon {
+                let s = NSStackView(views: [bugIcon, label("Report a Bug", 13, .semibold)])
+                s.orientation = .horizontal
+                s.spacing = 5
+                s.alignment = .centerY
+                bugRow = s
+            } else {
+                bugRow = label("Report a Bug", 13, .semibold)
+            }
+
+            var views: [NSView] = [icon, label("dotbar", 22, .bold),
+                                   label("Version \(v) (build \(b))", 11, .regular, .secondaryLabelColor),
+                                   divider()]
+            if let qrView { views.append(qrView) }
+            views.append(contentsOf: [
+                label("Support dotbar", 13, .semibold),
+                link("paypal.me/marcodalmoro", 11, URL(string: "https://paypal.me/marcodalmoro")!),
+                label("Point your phone's camera at the code — or click the link.", 10, .regular, .secondaryLabelColor),
+                divider(),
+                label("© 2026 Marcus1571", 13),
+                label("MIT", 11, .regular, .secondaryLabelColor),
+                link("github.com/Marcus1571/dotbar", 13, URL(string: "https://github.com/Marcus1571/dotbar")!),
+                bugRow,
+                link("github.com/Marcus1571/dotbar/issues", 11,
+                     URL(string: "https://github.com/Marcus1571/dotbar/issues")!),
+                tagline,
+            ])
+            let stack = NSStackView(views: views)
             stack.orientation = .vertical
             stack.spacing = 10
             stack.alignment = .centerX
@@ -138,6 +222,17 @@ final class App: NSObject, NSApplicationDelegate {
         if e.type == .rightMouseUp || e.modifierFlags.contains(.option) {
             let m = NSMenu()
             m.addItem(withTitle: "About dotbar", action: #selector(about), keyEquivalent: "")
+            // Report a Bug: opens the repo's Issues page. Same item as the
+            // siblings; grouped with About at the top of this menu. Emoji
+            // title, not an SF Symbol image: the ladybug NSMenuItem.image
+            // (explicitly set, verified non-nil at runtime via the debug log)
+            // never rendered in this menu on macOS 27 — tried transient and
+            // persistent menu display, with and without NSHighResolution-
+            // Capable — while the identical item renders fine in diskled-plus
+            // (findings.md). Emoji titles render everywhere.
+            let bug = m.addItem(withTitle: "🪲 Report a Bug…", action: #selector(reportBug), keyEquivalent: "")
+            bug.target = self
+            m.addItem(bug)
             m.addItem(.separator())
             if layout.hasAccess {
                 for name in Layout.profileNames {
