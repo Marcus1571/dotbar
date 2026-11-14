@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.1 (2026-11-14)
 
 - Fix: right-click on the dot stopped opening the menu in 0.4.0 — the "🪲 Report a Bug…" item was added to the menu twice (the `m.addItem(withTitle:)` convenience already inserts the item; a leftover explicit `m.addItem(bug)` from the earlier construction added the same item again), and AppKit throws on a duplicate add, aborting the menu build before it could display. The leftover line is gone; menu verified live (opens, emoji title renders).
 
