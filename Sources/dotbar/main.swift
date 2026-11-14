@@ -232,7 +232,6 @@ final class App: NSObject, NSApplicationDelegate {
             // (findings.md). Emoji titles render everywhere.
             let bug = m.addItem(withTitle: "🪲 Report a Bug…", action: #selector(reportBug), keyEquivalent: "")
             bug.target = self
-            m.addItem(bug)
             m.addItem(.separator())
             if layout.hasAccess {
                 for name in Layout.profileNames {

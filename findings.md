@@ -134,3 +134,26 @@ removed before release): the About window was captured headlessly and
 `reportBug()`'s `NSWorkspace.open` brought the browser forward. Lesson: when
 synthetic clicks go dark mid-session, fall back to launch-time hooks rather
 than retrying the click path.
+
+## 0.4.0 hotfix: a duplicate NSMenu add silently killed the dot's menu (2026-11-14)
+
+The 0.4.0 edit left the Report a Bug item in the menu **twice**: the switch to
+the `m.addItem(withTitle:action:keyEquivalent:)` convenience (which already
+inserts the item) was layered over a leftover explicit `m.addItem(bug)` from
+the previous construction. AppKit throws an internal-inconsistency exception
+on adding an item that is already in a menu; the exception fired mid-way
+through `click()`'s menu build on every right-click, so the menu never
+displayed — with **no trace in dotbar's log** (the log() lines around it never
+ran; an ObjC exception in Swift aborts the call stack silently).
+
+Verified after removing the leftover line: the right-click menu opens again
+(CGAEvent right-click, screenshot), and the emoji title renders in place of
+the never-rendering SF Symbol image.
+
+Lessons: (1) when switching an item between `addItem(withTitle:)` and an
+explicit `NSMenuItem` + `addItem(_:)`, check for a leftover second add —
+AppKit's duplicate-add exception is invisible without a log line inside the
+menu build; (2) the earlier "CGEvent clicks stopped working" scare (§CGEvent
+entry) and this bug overlapped in the session — the menu was genuinely broken
+by the double-add from the installed 0.4.0 onward, so not every later
+no-menu capture was the synthetic-click problem.

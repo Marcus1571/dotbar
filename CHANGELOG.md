@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Fix: right-click on the dot stopped opening the menu in 0.4.0 — the "🪲 Report a Bug…" item was added to the menu twice (the `m.addItem(withTitle:)` convenience already inserts the item; a leftover explicit `m.addItem(bug)` from the earlier construction added the same item again), and AppKit throws on a duplicate add, aborting the menu build before it could display. The leftover line is gone; menu verified live (opens, emoji title renders).
+
 ## 0.4.0 (2026-11-14)
 
 - New: **Report a Bug** — a `🪲 Report a Bug…` item in the dot's menu (grouped with About at the top) and a matching "Report a Bug" section on the About window (ladybug + link under the repo line). Both open `github.com/Marcus1571/dotbar/issues` in the default browser. Code: `main.swift` (`click()` menu item + `reportBug()` action; `LinkButton` replaces the attributed-NSTextField link label, whose links never fired on click in these About windows — confirmed in diskled-plus 0.10.1).
