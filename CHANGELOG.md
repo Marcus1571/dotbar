@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- New: **tiered donation buttons on the About page** — ☕ €1 (coffee) · 🍔 €5 (burger) · 🍣 €10 (sushi night), each opening PayPal.me **with the amount prefilled**: `https://paypal.me/marcodalmoro/1eur`, `/5eur`, `/10eur` (documented PayPal.Me format `paypal.me/<user>/<amount><currency>`; verified against PayPal's FAQ). QR and the generic link stay. Code: `main.swift` gains `tierRow()`/`tierButton()` (horizontal `NSStackView` of three `TierButton` blue pills — emoji + amount, layer-cornered 9pt, `NSWorkspace.open` on click) and the new `TierButton` class; the camera-hint label reworded to "Scan the code, tap the link, or pick a coffee…". Same design as NeverSleep 0.11 / diskled-plus 0.11 / usagebar 0.10 — the mac-menu-bar-apps About standard.
+
 ## 0.4.1 (2026-11-14)
 
 - Fix: right-click on the dot stopped opening the menu in 0.4.0 — the "🪲 Report a Bug…" item was added to the menu twice (the `m.addItem(withTitle:)` convenience already inserts the item; a leftover explicit `m.addItem(bug)` from the earlier construction added the same item again), and AppKit throws on a duplicate add, aborting the menu build before it could display. The leftover line is gone; menu verified live (opens, emoji title renders).
