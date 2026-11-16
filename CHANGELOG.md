@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 (2026-11-16)
 
 - New: **auto-switch toggle in Settings** (operator request) — "Switch profiles automatically when the display setup changes" (checkbox under the Profiles picker; defaults key `autoSwitch`, default on = the 0.5.0 behavior). When off, `applyForDisplay()` applies nothing and profiles only change when picked by hand (dot's menu or the Settings picker); turning it back on immediately applies the display's profile if the display setup differs from the last switch. The profile note in Settings reflects the toggle state ("Switched to automatically when…" / "Automatic switching is off — pick this profile from the dot's menu.").
 
