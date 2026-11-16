@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.1 (2026-11-16)
 
 - Fix: **the updater looped on its own release** — dotbar's `release.sh` writes the dotted version string ("0.7.0") into `CFBundleVersion`, while the appcast's `sparkle:version` is the numeric build stamp (700); Sparkle always compared the installed app as older, offered the same version forever, installed it, relaunched, and offered again. `build-app.sh` now sets `CFBundleVersion` to the numeric stamp computed from the short version (PlistBuddy after the plist write) — 0.7.0 → build 700, 0.7.1 → 701 — matching every sibling app's convention. After updating once to this release the loop stops (701 vs 701 = up to date).
 
