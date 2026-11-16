@@ -112,8 +112,13 @@ final class Layout {
     }
 
     // At launch and on display changes: switch to the display's profile only when the display setup changed since the
-    // last switch, so a profile picked by hand survives restarts.
+    // last switch, so a profile picked by hand survives restarts. Honors the user's auto-switch toggle
+    // (defaults key "autoSwitch", default on): when off, profiles only change when picked by hand.
     func applyForDisplay() {
+        guard UserDefaults.standard.object(forKey: "autoSwitch") as? Bool ?? true else {
+            log("applyForDisplay: auto-switch is off, nothing applied")
+            return
+        }
         let d = Self.displayProfile
         guard d != UserDefaults.standard.string(forKey: "profileDisplay") else { return }
         UserDefaults.standard.set(d, forKey: "profileDisplay")
@@ -182,6 +187,7 @@ final class SettingsWindow: NSObject, NSTableViewDataSource, NSTableViewDelegate
     private let status = NSTextField(wrappingLabelWithString: "")
     private let grant = NSButton(title: "Grant Access…", target: nil, action: nil)
     private let picker = NSSegmentedControl(labels: Layout.profileNames, trackingMode: .selectOne, target: nil, action: nil)
+    private let autoSwitch = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let note = NSTextField(wrappingLabelWithString: "")
     var onApplied: (() -> Void)?
 
@@ -210,6 +216,12 @@ final class SettingsWindow: NSObject, NSTableViewDataSource, NSTableViewDelegate
         picker.target = self; picker.action = #selector(pick)
         note.textColor = .secondaryLabelColor
         note.font = .systemFont(ofSize: 11)
+        // Auto-switch toggle (0.6.0): when off, profiles only change when picked
+        // by hand (dot's menu or this window). Default on — the 0.5.0 behavior.
+        autoSwitch.title = "Switch profiles automatically when the display setup changes"
+        autoSwitch.target = self
+        autoSwitch.action = #selector(autoSwitchChanged)
+        autoSwitch.state = (UserDefaults.standard.object(forKey: "autoSwitch") as? Bool ?? true) ? .on : .off
 
         let col = NSTableColumn(identifier: .init("item"))
         table.addTableColumn(col)
@@ -228,7 +240,7 @@ final class SettingsWindow: NSObject, NSTableViewDataSource, NSTableViewDelegate
         apply.keyEquivalent = "\r"
         let buttons = NSStackView(views: [fromBar, NSView(), apply])
 
-        let stack = NSStackView(views: [accessTitle, status, grant, profTitle, picker, note, scroll, buttons])
+        let stack = NSStackView(views: [accessTitle, status, grant, profTitle, picker, autoSwitch, note, scroll, buttons])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 8
@@ -248,6 +260,7 @@ final class SettingsWindow: NSObject, NSTableViewDataSource, NSTableViewDelegate
 
     private func reload() {
         let access = layout.hasAccess
+        autoSwitch.state = (UserDefaults.standard.object(forKey: "autoSwitch") as? Bool ?? true) ? .on : .off
         status.stringValue = access
             ? "✓ dotbar can read and rearrange the menu bar order, so each profile can have its own."
             : "macOS keeps the order of the menu bar icons in one protected file. To give each display its own arrangement, dotbar needs to read and change that file. Click Grant Access, select the file “com.apple.MenuBar.plist” that is already in view, and confirm. dotbar gets access to that one file only."
@@ -256,7 +269,11 @@ final class SettingsWindow: NSObject, NSTableViewDataSource, NSTableViewDelegate
         table.isEnabled = access
         picker.selectedSegment = Layout.profileNames.firstIndex(of: profileName) ?? 0
         let saved = layout.profile(profileName) != nil
-        note.stringValue = (profileName == layout.current ? "In use now. " : "Switched to automatically when \(profileName == "Large display" ? "an external display is attached" : "only the laptop screen is on"), or pick it from the dot's menu. ")
+        let auto = autoSwitch.state == .on
+        note.stringValue = (profileName == layout.current
+            ? "In use now. "
+            : (auto ? "Switched to automatically when \(profileName == "Large display" ? "an external display is attached" : "only the laptop screen is on"), or pick it from the dot's menu. "
+                    : "Automatic switching is off — pick this profile from the dot's menu. "))
             + "Drag rows to reorder: top is next to the clock; everything below ┃ goes to dotbar's bar. "
             + (saved ? "" : "Not saved yet: showing the current menu bar.")
         keep = layout.profile(profileName) ?? layout.read() ?? [:]
@@ -265,6 +282,14 @@ final class SettingsWindow: NSObject, NSTableViewDataSource, NSTableViewDelegate
     }
 
     @objc private func grantAccess() { _ = layout.requestAccess(); reload() }
+
+    @objc private func autoSwitchChanged() {
+        let on = autoSwitch.state == .on
+        UserDefaults.standard.set(on, forKey: "autoSwitch")
+        log("auto-switch: \(on ? "on" : "off")")
+        if on { layout.applyForDisplay() }
+        reload()
+    }
 
     @objc private func pick() {
         profileName = Layout.profileNames[picker.selectedSegment]
