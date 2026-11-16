@@ -1,0 +1,21 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>dotbar</title>
+    <link>https://raw.githubusercontent.com/Marcus1571/dotbar/main/appcast.xml</link>
+    <description>Most recent dotbar releases.</description>
+    <language>en</language>
+    <item>
+      <title>Version 0.7.0</title>
+      <pubDate>Mon, 16 Nov 2026 15:40:24 GMT</pubDate>
+      <sparkle:releaseNotesLink>https://github.com/Marcus1571/dotbar/releases/tag/v0.7.0</sparkle:releaseNotesLink>
+      <enclosure url="https://github.com/Marcus1571/dotbar/releases/download/v0.7.0/dotbar-0.7.0.dmg"
+                 sparkle:version="700"
+                 sparkle:shortVersionString="0.7.0"
+                 sparkle:edSignature="fEdO4cv4awhhwnCt10Zl7iw9smvz1vp108UCLnrFP8ylXps977Qq7ARSibrfW8oJBm1/Cemi6JuToDF6Obz0Cg=="
+                 length="1898749"
+                 type="application/octet-stream" />
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+    </item>
+  </channel>
+</rss>
