@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 (2026-11-16)
 
 - New: **Sparkle updates — "Check for Updates… ⌘U" in the dot's menu + automatic checks (startup + weekly, auto-install)**. dotbar was the only sibling without an updater (GitHub Releases only); ported from usagebar, the closest sibling (same plain-`swiftc` single-module build): `scripts/fetch-sparkle.sh` (pinned Sparkle 2.10.1, SHA-verified), `build-app.sh SPARKLE=1` branch (framework linked + embedded, `SU*` plist keys with the shared EdDSA public key, deepest-first signing), `Sources/dotbar/Updater.swift` (`SPUStandardUpdaterController` wrapper behind `canImport(Sparkle)` — the bare dev run compiles without it), "Check for Updates…" item in the dot's right-click menu (present only in packaged builds), `scripts/make-appcast.sh` (EdDSA-signs `appcast.xml` from a built DMG — new script; the appcast's enclosure points at the GitHub Release asset) and `make-dmg.sh` now sets `SPARKLE=1`. Note: dotbar's Info.plist version stays hardcoded in `build-app.sh` (release.sh seds it) — the appcast build number is computed from the release version.
 
