@@ -16,6 +16,14 @@ final class App: NSObject, NSApplicationDelegate {
     let bar = BarPanel()
     let layout = Layout()
     lazy var settings = SettingsWindow(layout: layout)
+    // Sparkle lives only in packaged builds (SPARKLE=1); a bare dev run has no bundle to update.
+    lazy var updater: (() -> Void)? = {
+        #if canImport(Sparkle)
+        return { Updater.shared.checkForUpdates() }
+        #else
+        return nil
+        #endif
+    }()
     var hidden: [Item] = []
     // Per running app, its items from the scan where it showed the most. macOS 27 drops items with no room and they
     // leave no AX trace; an app's item elements also change when it redraws, so drops are counted, not matched.
@@ -61,6 +69,10 @@ final class App: NSObject, NSApplicationDelegate {
     }
 
     @objc func openSettings() { settings.show() }
+
+    /// Sparkle's Check for Updates — the menu item exists only when the
+    /// packaged build linked Sparkle (updater != nil).
+    @objc func checkForUpdates() { updater?() }
 
     /// Opens the repository's GitHub Issues page in the default browser.
     @objc func reportBug() {
@@ -255,6 +267,12 @@ final class App: NSObject, NSApplicationDelegate {
         if e.type == .rightMouseUp || e.modifierFlags.contains(.option) {
             let m = NSMenu()
             m.addItem(withTitle: "About dotbar", action: #selector(about), keyEquivalent: "")
+            // Check for Updates (⌘U): present only in packaged builds (Sparkle
+            // linked) — the dev run has no bundle or feed to check against.
+            if updater != nil {
+                let u = m.addItem(withTitle: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "u")
+                u.target = self
+            }
             // Report a Bug: opens the repo's Issues page. Same item as the
             // siblings; grouped with About at the top of this menu. Emoji
             // title, not an SF Symbol image: the ladybug NSMenuItem.image

@@ -13,7 +13,7 @@ VERSION="${VERSION:-$(grep -m1 -oE '^## [0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | s
 SIGN_IDENTITY="${SIGN_IDENTITY:-Developer ID Application: Marco Dal Moro (NGPL7S3YX3)}"
 DMG="build/dist/dotbar-${VERSION}.dmg"
 
-SIGN_IDENTITY="$SIGN_IDENTITY" ./scripts/build-app.sh
+SIGN_IDENTITY="$SIGN_IDENTITY" SPARKLE=1 ./scripts/build-app.sh
 
 rm -rf "$STAGING"
 mkdir -p "$STAGING" build/dist
