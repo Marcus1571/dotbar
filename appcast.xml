@@ -6,14 +6,14 @@
     <description>Most recent dotbar releases.</description>
     <language>en</language>
     <item>
-      <title>Version 0.7.0</title>
-      <pubDate>Mon, 16 Nov 2026 15:40:24 GMT</pubDate>
-      <sparkle:releaseNotesLink>https://github.com/Marcus1571/dotbar/releases/tag/v0.7.0</sparkle:releaseNotesLink>
-      <enclosure url="https://github.com/Marcus1571/dotbar/releases/download/v0.7.0/dotbar-0.7.0.dmg"
-                 sparkle:version="700"
-                 sparkle:shortVersionString="0.7.0"
-                 sparkle:edSignature="fEdO4cv4awhhwnCt10Zl7iw9smvz1vp108UCLnrFP8ylXps977Qq7ARSibrfW8oJBm1/Cemi6JuToDF6Obz0Cg=="
-                 length="1898749"
+      <title>Version 0.7.1</title>
+      <pubDate>Mon, 16 Nov 2026 15:57:30 GMT</pubDate>
+      <sparkle:releaseNotesLink>https://github.com/Marcus1571/dotbar/releases/tag/v0.7.1</sparkle:releaseNotesLink>
+      <enclosure url="https://github.com/Marcus1571/dotbar/releases/download/v0.7.1/dotbar-0.7.1.dmg"
+                 sparkle:version="701"
+                 sparkle:shortVersionString="0.7.1"
+                 sparkle:edSignature="i9Q6wFDkORmqGo/vTOjbSHNGDYdcOu/PRRwe6e0mxoPEAAh7YKHY5x3vX2CT7mJ9JmYw1tJvx34rYyBgxDKcCQ=="
+                 length="1899225"
                  type="application/octet-stream" />
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
     </item>
