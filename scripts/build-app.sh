@@ -61,6 +61,13 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>NSHumanReadableCopyright</key><string>© 2026 Marcus1571</string>${SPARKLE_PLIST_KEYS}
 </dict></plist>
 PLIST
+# Sparkle compares the appcast's sparkle:version (an integer, e.g. 700) against
+# CFBundleVersion — the dotted string ("0.7.0") always compares as older and
+# would loop the updater forever. CFBundleVersion gets the numeric build stamp
+# computed from the short version, like every sibling app.
+SHORT_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP/Contents/Info.plist")
+NUMERIC_VERSION="$(echo "$SHORT_VERSION" | awk -F. '{print $1*10000+$2*100+$3}')"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NUMERIC_VERSION" "$APP/Contents/Info.plist"
 # Sign deepest-first: the Sparkle framework (XPC services, Updater.app, Autoupdate helper)
 # needs a valid signature before the app can even attempt notarization.
 if [[ "$SPARKLE" == 1 ]]; then
