@@ -769,6 +769,10 @@ final class TierButton: NSButton {
         wantsLayer = true
         layer?.backgroundColor = NSColor(red: 0.0, green: 0.41, blue: 0.77, alpha: 1).cgColor
         layer?.cornerRadius = 9
+        // Click-only control: refuse first responder so the window never hands
+        // it keyboard focus — the focus ring reads as blue "bleeding" past the
+        // rounded layer (operator report, dotbar 0.8.0).
+        refusesFirstResponder = true
         target = self
         action = #selector(openURL(_:))
     }
