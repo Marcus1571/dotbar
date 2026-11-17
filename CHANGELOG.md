@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.1 (2026-11-17)
 
 - Fix: **the €1 tier button's focus ring read as "blue bleeding out"** (operator report on 0.8.0) — the About window handed initial keyboard focus to the first TierButton, and macOS 27 paints the focus ring as a blue halo extending past the button's rounded layer. `TierButton` now sets `refusesFirstResponder = true` (click-only control, no keyboard interaction), so no tier button can ever be focused. Same fix queued for diskled-plus 0.12.1 (shared TierButton design).
 
