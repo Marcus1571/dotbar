@@ -172,8 +172,8 @@ final class App: NSObject, NSApplicationDelegate {
                 return d
             }
             let icon = NSImageView(image: NSApp.applicationIconImage)
-            icon.widthAnchor.constraint(equalToConstant: 96).isActive = true
-            icon.heightAnchor.constraint(equalToConstant: 96).isActive = true
+            icon.widthAnchor.constraint(equalToConstant: 52).isActive = true
+            icon.heightAnchor.constraint(equalToConstant: 52).isActive = true
 
             // Donation block: PayPal.me QR + tappable link (phones can't scan
             // their own screen, so the link matters). QR is bundled as
@@ -209,24 +209,87 @@ final class App: NSObject, NSApplicationDelegate {
                 bugRow = label("Report a Bug", 13, .semibold)
             }
 
-            var views: [NSView] = [icon, label("dotbar", 22, .bold),
-                                   label("Version \(v) (build \(b))", 11, .regular, .secondaryLabelColor),
-                                   divider()]
-            if let qrView { views.append(qrView) }
-            views.append(contentsOf: [
-                label("Support dotbar", 13, .semibold),
-                link("paypal.me/marcodalmoro", 11, URL(string: "https://paypal.me/marcodalmoro")!),
-                tierRow(),
-                label("Scan the code, tap the link, or pick a coffee — a coffee (€1), a burger (€5), a sushi night (€10). Thank you!", 10, .regular, .secondaryLabelColor),
-                divider(),
-                label("© 2026 Marcus1571", 13),
-                label("MIT", 11, .regular, .secondaryLabelColor),
-                link("github.com/Marcus1571/dotbar", 13, URL(string: "https://github.com/Marcus1571/dotbar")!),
-                bugRow,
-                link("github.com/Marcus1571/dotbar/issues", 11,
-                     URL(string: "https://github.com/Marcus1571/dotbar/issues")!),
-                tagline,
+            // Symbol badge helper: an SF Symbol image at a given size, tinted
+            // (contentTintColor — works in windows; the NSMenuItem.image quirk
+            // doesn't apply here).
+            func symbol(_ name: String, size: CGFloat, tint: NSColor) -> NSView {
+                let image = NSImage(systemSymbolName: name, accessibilityDescription: name)?
+                    .withSymbolConfiguration(.init(pointSize: size, weight: .regular))
+                let v = NSImageView(image: image ?? NSImage())
+                v.contentTintColor = tint
+                v.widthAnchor.constraint(equalToConstant: size + 2).isActive = true
+                v.heightAnchor.constraint(equalToConstant: size).isActive = true
+                return v
+            }
+            /// Card container — the heat-warning panel's card pattern
+            /// (NeverSleep 0.14/0.15): badge + bold title on top, content
+            /// below, soft rounded background.
+            func card(badge: String, tint: NSColor, title: String, _ content: NSView) -> NSView {
+                let header = NSStackView(views: [symbol(badge, size: 13, tint: tint),
+                                                 label(title, 13, .semibold)])
+                header.orientation = .horizontal
+                header.spacing = 8
+                header.alignment = .centerY
+                let stack = NSStackView(views: [header, content])
+                stack.orientation = .vertical
+                stack.spacing = 10
+                stack.alignment = .leading
+                stack.edgeInsets = NSEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
+                stack.wantsLayer = true
+                stack.layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.03).cgColor
+                stack.layer?.cornerRadius = 10
+                stack.widthAnchor.constraint(equalToConstant: 276).isActive = true
+                return stack
+            }
+            // Header: icon + name + version, leading-aligned (0.7.0 card style).
+            let nameColumn = NSStackView(views: [
+                label("dotbar", 22, .bold),
+                label("Version \(v) (build \(b))", 11, .regular, .secondaryLabelColor),
             ])
+            nameColumn.orientation = .vertical
+            nameColumn.spacing = 3
+            nameColumn.alignment = .leading
+            let header = NSStackView(views: [icon, nameColumn])
+            header.orientation = .horizontal
+            header.spacing = 14
+            header.alignment = .centerY
+
+            let supportContent = NSStackView(views: [])
+            supportContent.orientation = .vertical
+            supportContent.spacing = 10
+            supportContent.alignment = .centerX
+            var supportViews: [NSView] = []
+            if let qrView { supportViews.append(qrView) }
+            supportViews.append(contentsOf: [
+                tierRow(),
+                link("paypal.me/marcodalmoro", 11, URL(string: "https://paypal.me/marcodalmoro")!),
+            ])
+            let caption = label("Scan the code, tap the link, or pick a coffee — a coffee (€1), a burger (€5), a sushi night (€10). Thank you!", 10, .regular, .secondaryLabelColor)
+            caption.lineBreakMode = .byWordWrapping
+            caption.preferredMaxLayoutWidth = 228
+            supportViews.append(caption)
+            supportViews.forEach { supportContent.addArrangedSubview($0) }
+
+            let bugContent = link("github.com/Marcus1571/dotbar/issues", 11,
+                                  URL(string: "https://github.com/Marcus1571/dotbar/issues")!)
+
+            let licenseContent = NSStackView(views: [
+                label("© 2026 Marcus1571", 11),
+                label("MIT", 11, .regular, .secondaryLabelColor),
+                link("github.com/Marcus1571/dotbar", 11, URL(string: "https://github.com/Marcus1571/dotbar")!),
+            ])
+            licenseContent.orientation = .vertical
+            licenseContent.spacing = 6
+            licenseContent.alignment = .leading
+
+            var views: [NSView] = [
+                header,
+                card(badge: "heart.fill", tint: .controlAccentColor, title: "Support dotbar", supportContent),
+                card(badge: "ladybug.fill", tint: .systemOrange, title: "Report a Bug", bugContent),
+                card(badge: "doc.text", tint: .secondaryLabelColor, title: "License & code", licenseContent),
+                divider(),
+                tagline,
+            ]
             let stack = NSStackView(views: views)
             stack.orientation = .vertical
             stack.spacing = 10

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- New: **About page redesigned to the card style** (the heat-warning panel design language, NeverSleep 0.15.0 pattern): **icon header** (icon 52 pt + name + version, leading-aligned) over three soft-background cards — ♥ **Support dotbar** (QR + tier row + link + caption), 🐞 **Report a Bug** (Issues link), 📄 **License & code** (©, MIT, repo link) — with the tagline as the footer. Code: `main.swift` gains the `card(badge:tint:title:)` container (NSStackView + layer background/cornerRadius) and a generalized `symbol(_:size:tint:)` helper; the old `bugRow`/flat centered stack are gone. Window is now 316 pt wide with leading-aligned content. Content unchanged.
+
 ## 0.7.1 (2026-11-16)
 
 - Fix: **the updater looped on its own release** — dotbar's `release.sh` writes the dotted version string ("0.7.0") into `CFBundleVersion`, while the appcast's `sparkle:version` is the numeric build stamp (700); Sparkle always compared the installed app as older, offered the same version forever, installed it, relaunched, and offered again. `build-app.sh` now sets `CFBundleVersion` to the numeric stamp computed from the short version (PlistBuddy after the plist write) — 0.7.0 → build 700, 0.7.1 → 701 — matching every sibling app's convention. After updating once to this release the loop stops (701 vs 701 = up to date).
