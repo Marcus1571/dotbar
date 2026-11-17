@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 (2026-11-17)
 
 - New: **About page redesigned to the card style** (the heat-warning panel design language, NeverSleep 0.15.0 pattern): **icon header** (icon 52 pt + name + version, leading-aligned) over three soft-background cards — ♥ **Support dotbar** (QR + tier row + link + caption), 🐞 **Report a Bug** (Issues link), 📄 **License & code** (©, MIT, repo link) — with the tagline as the footer. Code: `main.swift` gains the `card(badge:tint:title:)` container (NSStackView + layer background/cornerRadius) and a generalized `symbol(_:size:tint:)` helper; the old `bugRow`/flat centered stack are gone. Window is now 316 pt wide with leading-aligned content. Content unchanged.
 
